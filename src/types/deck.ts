@@ -95,6 +95,7 @@ export interface SlideContent {
 }
 
 export interface SlideJSON {
+  id?: string
   type: SlideType
   position: number
   content: SlideContent

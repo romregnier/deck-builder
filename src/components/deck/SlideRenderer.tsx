@@ -61,6 +61,16 @@ const SLIDE_GLOWS: Record<string, string> = {
   mockup:     'radial-gradient(ellipse 70% 60% at 50% 40%, rgba(0,212,255,0.07) 0%, transparent 70%)',
 }
 
+// ── DB-10 P2-2 — hex to RGB components helper ────────────────────────────────
+function hexToRgbComponents(hex: string): string {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return '124, 58, 237'
+  return `${r}, ${g}, ${b}`
+}
+
 // ── Eyebrow component ────────────────────────────────────────────────────────
 export function Eyebrow({ text, style }: { text: string; style?: React.CSSProperties }) {
   return (
@@ -118,6 +128,10 @@ export function SlideRenderer({
   // Sprint 3 — CSS vars supplémentaires
   ;(cssVars as Record<string, string>)['--accent-secondary'] =
     themeJSON?.secondaryAccent || themeJSON?.accentColor || '#7C3AED'
+  // DB-10 P2-2 — accent-secondary-rgb pour rgba() dans les stats cards
+  ;(cssVars as Record<string, string>)['--accent-secondary-rgb'] = hexToRgbComponents(
+    themeJSON?.secondaryAccent || '#7C3AED'
+  )
   // Sprint 3 — Stagger animatino delay as CSS var (ms)
   ;(cssVars as Record<string, string>)['--stagger'] =
     `${themeJSON?.animationStagger ?? 100}ms`
@@ -141,6 +155,8 @@ export function SlideRenderer({
   return (
     <div
       data-theme={dataTheme}
+      data-thumbnail={thumbnail ? 'true' : undefined}
+      data-animated={themeJSON?.bgAnimation && themeJSON.bgAnimation !== 'none' ? 'true' : undefined}
       style={{
         width: '100%',
         height: '100%',
@@ -823,15 +839,10 @@ function renderSlide(
     case 'chart': {
       const chartData = content.data && content.data.length > 0 ? content.data : []
       const chartType = content.chartType || 'bar'
+      // DB-10 P0-1 — unique chart IDs based on slide.id to avoid SVG gradient collisions
+      const chartId = (slide.id || `p${slide.position}`).replace(/-/g, '').slice(0, 8)
       return (
-        <div
-          style={{
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            height: '100%', padding: '6% 8%',
-            background: 'var(--surface)',
-          }}
-        >
+        <div className="tpl-chart">
           {editMode ? (
             <EditableField as="h2" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: 'clamp(20px, 2.8cqw, 36px)', fontWeight: 700, color: 'var(--text-pri)', marginBottom: 32, textAlign: 'center' }} placeholder="Titre du graphique..." />
           ) : content.title ? (
@@ -844,10 +855,10 @@ function renderSlide(
           ) : null}
           {chartData.length > 0 && (() => {
             switch (chartType) {
-              case 'line':   return <LineChart data={chartData} thumbnail={thumbnail} />
+              case 'line':   return <LineChart data={chartData} thumbnail={thumbnail} chartId={chartId} />
               case 'pie':    return <PieChart data={chartData} />
               case 'donut':  return <DonutChart data={chartData} />
-              default:       return <BarChart data={chartData} thumbnail={thumbnail} />
+              default:       return <BarChart data={chartData} thumbnail={thumbnail} chartId={chartId} />
             }
           })()}
         </div>
@@ -860,13 +871,13 @@ function renderSlide(
       const textColor = themeJSON?.textColor || '#F0EDF5'
       const events = content.events || []
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: thumbnail ? '12px 20px' : '48px 80px', boxSizing: 'border-box' }}>
+        <div className="tpl-timeline" style={{ padding: thumbnail ? '12px 20px' : undefined, boxSizing: 'border-box' }}>
           {editMode ? (
-            <EditableField as="div" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: thumbnail ? 10 : 'clamp(28px, 3cqw, 42px)', fontWeight: 800, marginBottom: thumbnail ? 8 : 48, color: textColor }} placeholder="Timeline..." />
+            <EditableField as="h2" className="tpl-timeline__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: thumbnail ? 10 : 'clamp(28px, 3cqw, 42px)', fontWeight: 800, marginBottom: thumbnail ? 8 : 48, color: textColor }} placeholder="Timeline..." />
           ) : (
-            <div style={{ fontSize: thumbnail ? 10 : 'clamp(28px, 3cqw, 42px)', fontWeight: 800, marginBottom: thumbnail ? 8 : 48, color: textColor }}>
+            <h2 className="tpl-timeline__title" style={{ fontSize: thumbnail ? 10 : 'clamp(28px, 3cqw, 42px)', fontWeight: 800, marginBottom: thumbnail ? 8 : 48, color: textColor }}>
               {content.title || 'Timeline'}
-            </div>
+            </h2>
           )}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', position: 'relative', minHeight: 0 }}>
             {/* Vertical line */}
@@ -936,13 +947,13 @@ function renderSlide(
       const left = content.left || { label: 'Colonne A', items: [] }
       const right = content.right || { label: 'Colonne B', items: [] }
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: thumbnail ? '10px 14px' : '48px 80px', gap: thumbnail ? 8 : 32, boxSizing: 'border-box' }}>
+        <div className="tpl-comparison" style={{ padding: thumbnail ? '10px 14px' : undefined, gap: thumbnail ? 8 : 32, boxSizing: 'border-box' }}>
           {editMode ? (
-            <EditableField as="div" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: thumbnail ? 9 : 'clamp(28px, 3cqw, 48px)', fontWeight: 800, textAlign: 'center', color: textColor }} placeholder="Comparaison..." />
+            <EditableField as="h2" className="tpl-comparison__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: thumbnail ? 9 : 'clamp(28px, 3cqw, 48px)', fontWeight: 800, textAlign: 'center', color: textColor }} placeholder="Comparaison..." />
           ) : (
-            <div style={{ fontSize: thumbnail ? 9 : 'clamp(28px, 3cqw, 48px)', fontWeight: 800, textAlign: 'center', color: textColor }}>
+            <h2 className="tpl-comparison__title" style={{ fontSize: thumbnail ? 9 : 'clamp(28px, 3cqw, 48px)', fontWeight: 800, textAlign: 'center', color: textColor }}>
               {content.title || 'Comparaison'}
-            </div>
+            </h2>
           )}
           <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: thumbnail ? 6 : 24, minHeight: 0 }}>
             {[left, right].map((col, i) => {
@@ -1366,9 +1377,11 @@ const CHART_HEX = [
 function BarChart({
   data,
   thumbnail,
+  chartId = 'default',
 }: {
   data: { label: string; value: number }[]
   thumbnail?: boolean
+  chartId?: string
 }) {
   const max = Math.max(...data.map(d => d.value), 1)
   const W = 600
@@ -1383,6 +1396,8 @@ function BarChart({
   const barW = Math.min(60, (chartW / n) * 0.55)
   const gap = chartW / n
 
+  // DB-10 P0-1 — unique gradient IDs to avoid collisions when multiple charts in DOM
+  const barGradId = `barGrad-${chartId}`
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
@@ -1391,11 +1406,10 @@ function BarChart({
       aria-label="Bar chart"
     >
       <defs>
-        <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={barGradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#E11F7B" stopOpacity="1" />
           <stop offset="100%" stopColor="#E11F7B" stopOpacity="0.35" />
         </linearGradient>
-        {/* Grid lines */}
       </defs>
 
       {/* Horizontal grid lines */}
@@ -1433,7 +1447,7 @@ function BarChart({
               x={x} y={y}
               width={barW} height={barH}
               rx={4} ry={4}
-              fill="url(#barGrad)"
+              fill={`url(#${barGradId})`}
               style={thumbnail ? undefined : {
                 transition: 'height 0.6s cubic-bezier(0.22,1,0.36,1)',
               }}
@@ -1478,9 +1492,11 @@ function BarChart({
 function LineChart({
   data,
   thumbnail,
+  chartId = 'default',
 }: {
   data: { label: string; value: number }[]
   thumbnail?: boolean
+  chartId?: string
 }) {
   const max = Math.max(...data.map(d => d.value), 1)
   const W = 600
@@ -1505,6 +1521,8 @@ function LineChart({
       ` L ${pts[pts.length - 1].x},${PAD_TOP + chartH} Z`
     : ''
 
+  // DB-10 P0-1 — unique gradient IDs to avoid collisions when multiple charts in DOM
+  const lineAreaGradId = `lineAreaGrad-${chartId}`
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
@@ -1513,7 +1531,7 @@ function LineChart({
       aria-label="Line chart"
     >
       <defs>
-        <linearGradient id="lineAreaGrad" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={lineAreaGradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#E11F7B" stopOpacity="0.3" />
           <stop offset="100%" stopColor="#E11F7B" stopOpacity="0.03" />
         </linearGradient>
@@ -1544,7 +1562,7 @@ function LineChart({
 
       {/* Area fill */}
       {areaPath && (
-        <path d={areaPath} fill="url(#lineAreaGrad)" />
+        <path d={areaPath} fill={`url(#${lineAreaGradId})`} />
       )}
 
       {/* Line */}

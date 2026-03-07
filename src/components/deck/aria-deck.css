@@ -606,3 +606,158 @@
 }
 .feature-card:nth-child(3)::before { background: linear-gradient(90deg, var(--accent-secondary, #7C3AED), transparent); }
 .feature-card:nth-child(4)::before { background: linear-gradient(90deg, var(--accent-secondary, #7C3AED), transparent); }
+
+/* ── DB-10 P0-2 — Thumbnail safe : orbit-visual height overflow ────────────── */
+[data-thumbnail="true"] .orbit-visual {
+  height: 80px !important;
+  min-height: unset;
+}
+[data-thumbnail="true"] .orbit-ring-el {
+  display: none;
+}
+[data-thumbnail="true"] .orbit-center-el {
+  width: 32px;
+  height: 32px;
+}
+[data-thumbnail="true"] .orbit-nodes-container {
+  display: none;
+}
+
+/* ── DB-10 P1-1 — Thumbnail mode : désactiver toutes les animations ─────────── */
+[data-thumbnail="true"] * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* ── DB-10 P1-2 — Container queries responsive : grilles multi-colonnes ────── */
+@container (max-width: 400px) {
+  .features-grid         { grid-template-columns: 1fr 1fr !important; }
+  .pricing-grid          { grid-template-columns: 1fr 1fr !important; }
+  .team-grid             { grid-template-columns: 1fr 1fr !important; }
+  .roadmap-grid          { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .mockup-cards-grid     { grid-template-columns: 1fr 1fr !important; }
+  .roadmap-dot           { width: 24px !important; height: 24px !important; font-size: 9px !important; }
+}
+
+@container (max-width: 250px) {
+  .features-grid,
+  .pricing-grid,
+  .team-grid,
+  .roadmap-grid,
+  .mockup-cards-grid     { grid-template-columns: 1fr !important; }
+  .feature-card,
+  .pricing-card-wrap,
+  .team-card,
+  .roadmap-phase         { padding: 4px !important; }
+  .team-avatar-circle    { width: 20px !important; height: 20px !important; font-size: 8px !important; }
+}
+
+/* ── DB-10 P1-3 — Classes CSS pour chart, timeline, comparison ─────────────── */
+
+/* tpl-chart */
+.tpl-chart {
+  background: var(--slide-bg, var(--bg));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6% 8%;
+  width: 100%;
+  height: 100%;
+}
+
+/* tpl-timeline */
+.tpl-timeline {
+  background: var(--slide-bg, var(--bg));
+  display: flex;
+  flex-direction: column;
+  padding: 6% 8%;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* tpl-comparison */
+.tpl-comparison {
+  background: var(--slide-bg, var(--bg));
+  display: flex;
+  flex-direction: column;
+  padding: 6% 8%;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Titres sémantiques timeline et comparison */
+.tpl-timeline__title,
+.tpl-comparison__title {
+  font-size: clamp(14px, 2.5cqw, 32px);
+  font-weight: 800;
+  color: var(--text-pri);
+  margin-bottom: 0;
+}
+
+/* data-animated coverage pour les 3 nouveaux templates */
+[data-animated="true"] .tpl-chart,
+[data-animated="true"] .tpl-timeline,
+[data-animated="true"] .tpl-comparison {
+  background: transparent !important;
+}
+
+/* ── DB-10 P1-4 — Layout split de tpl-hero ──────────────────────────────────── */
+.tpl-hero[data-layout="split"] .tpl-hero__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8% 6%;
+  flex: 1;
+}
+
+.tpl-hero[data-layout="split"] .tpl-hero__visual {
+  background: var(--elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+
+.tpl-hero[data-layout="split"] .tpl-hero__visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── DB-10 P1-5 — Layout two-col de tpl-content ─────────────────────────────── */
+.tpl-content[data-layout="two-col"] {
+  display: block;
+  padding: 5% 7%;
+}
+
+/* ── DB-10 P2-1 — Couleurs CSS vars (roadmap, orbit, feature-card) ──────────── */
+.roadmap-grid::before {
+  background: linear-gradient(90deg, var(--accent), var(--accent-secondary, #7C3AED), transparent) !important;
+}
+
+.orbit-center-el {
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary, #7C3AED)) !important;
+}
+
+.feature-card:nth-child(1)::before {
+  background: linear-gradient(180deg, var(--accent), transparent) !important;
+}
+.feature-card:nth-child(2)::before {
+  background: linear-gradient(180deg, var(--accent-secondary, #7C3AED), transparent) !important;
+}
+
+.pricing-card-wrap.featured::before {
+  background: var(--accent) !important;
+}
+
+/* ── DB-10 P2-4 — pointer-events none sur pseudo-éléments cta et quote ────── */
+.tpl-cta::before,
+.tpl-quote::before,
+.tpl-quote::after {
+  pointer-events: none;
+}
