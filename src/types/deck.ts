@@ -29,6 +29,8 @@ export interface DeckThemeJSON {
   // Sprint 5 — Police + Langue
   fontFamily?: 'Poppins' | 'Inter' | 'DM Sans' | 'Space Grotesk' | 'Syne'
   lang?: 'Français' | 'English'
+  // DB-08 — Direction artistique
+  da?: 'editorial' | 'neon' | 'soft' | 'terminal'
 }
 export type DeckAudience = 'Investisseur' | 'Partenaire' | 'Équipe' | 'Client' | 'Public'
 export type DeckTonality = 'Formel' | 'Neutre' | 'Dynamique' | 'Inspirant'

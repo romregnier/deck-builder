@@ -1662,6 +1662,90 @@ function TemplateSwapModal({
   )
 }
 
+// ── DA Presets (DB-08) ────────────────────────────────────────────────────────
+
+const DA_PRESETS = [
+  {
+    id: 'editorial' as const,
+    label: 'La Revue',
+    tagline: 'Magazine · Prestige · Autorité',
+    preview: { bg: '#F5F2EC', accent: '#C1372A' },
+    theme: {
+      preset: 'EDITORIAL',
+      bgColor: '#F5F2EC',
+      accentColor: '#C1372A',
+      secondaryAccent: '#8B6914',
+      textColor: '#1A1614',
+      textPrimary: '#1A1614',
+      textSecondary: '#6B6560',
+      fontFamily: 'Inter' as const,
+      bgAnimation: 'none' as const,
+      noiseEnabled: false,
+      glowEffect: false,
+      gradientText: false,
+      da: 'editorial' as const,
+    },
+  },
+  {
+    id: 'neon' as const,
+    label: 'Voltage',
+    tagline: 'Cyberpunk · Énergie · Nuit',
+    preview: { bg: '#060612', accent: '#FF2D78' },
+    theme: {
+      preset: 'NEON_TOKYO',
+      bgColor: '#060612',
+      accentColor: '#FF2D78',
+      secondaryAccent: '#00F5D4',
+      textColor: '#E8E8FF',
+      fontFamily: 'Space Grotesk' as const,
+      bgAnimation: 'particles' as const,
+      glowEffect: true,
+      gradientText: true,
+      noiseEnabled: false,
+      da: 'neon' as const,
+    },
+  },
+  {
+    id: 'soft' as const,
+    label: 'Pearl',
+    tagline: 'SaaS modern · Clean · Confiant',
+    preview: { bg: '#FAFAFA', accent: '#6C47FF' },
+    theme: {
+      preset: 'SOFT_LIGHT',
+      bgColor: '#FAFAFA',
+      accentColor: '#6C47FF',
+      secondaryAccent: '#FF6B35',
+      textColor: '#111118',
+      fontFamily: 'DM Sans' as const,
+      bgAnimation: 'none' as const,
+      glowEffect: false,
+      gradientText: false,
+      noiseEnabled: false,
+      da: 'soft' as const,
+    },
+  },
+  {
+    id: 'terminal' as const,
+    label: 'Syntax',
+    tagline: 'Dev tool · Épuré · Technique',
+    preview: { bg: '#0D1117', accent: '#3FB950' },
+    theme: {
+      preset: 'TERMINAL',
+      bgColor: '#0D1117',
+      accentColor: '#3FB950',
+      secondaryAccent: '#58A6FF',
+      textColor: '#E6EDF3',
+      fontFamily: 'Inter' as const,
+      bgAnimation: 'matrix' as const,
+      glowEffect: false,
+      gradientText: false,
+      noiseEnabled: true,
+      noiseOpacity: 0.04,
+      da: 'terminal' as const,
+    },
+  },
+]
+
 // ── StylePanel ────────────────────────────────────────────────────────────────
 
 function StylePanel({
@@ -1731,6 +1815,48 @@ function StylePanel({
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: 2 }}>
           <X size={14} />
         </button>
+      </div>
+
+      {/* DB-08 — Directions artistiques */}
+      <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <p style={{ ...sectionTitle, marginTop: 4 }}>Direction artistique</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {/* Bouton reset DA */}
+          <button
+            onClick={() => onUpdate({ da: undefined }).then(() => {})}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8,
+              background: !themeJSON?.da ? 'rgba(225,31,123,0.12)' : 'rgba(255,255,255,0.03)',
+              border: !themeJSON?.da ? '1px solid rgba(225,31,123,0.3)' : '1px solid rgba(255,255,255,0.06)',
+              cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'Poppins, sans-serif',
+            }}
+          >
+            <div style={{ width: 20, height: 20, borderRadius: 4, background: '#0B090D', border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Orion Dark</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>Défaut · Cosmique</div>
+            </div>
+          </button>
+          {DA_PRESETS.map(da => (
+            <button
+              key={da.id}
+              onClick={() => onUpdate({ ...da.theme }).then(() => {})}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8,
+                background: themeJSON?.da === da.id ? 'rgba(225,31,123,0.12)' : 'rgba(255,255,255,0.03)',
+                border: themeJSON?.da === da.id ? '1px solid rgba(225,31,123,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'Poppins, sans-serif',
+                transition: 'all 0.15s',
+              }}
+            >
+              <div style={{ width: 20, height: 20, borderRadius: 4, background: da.preview.bg, border: `2px solid ${da.preview.accent}`, flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>{da.label}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{da.tagline}</div>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* FIX I3 — Sélecteur de langue */}

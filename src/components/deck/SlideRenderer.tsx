@@ -157,6 +157,7 @@ export function SlideRenderer({
       data-theme={dataTheme}
       data-thumbnail={thumbnail ? 'true' : undefined}
       data-animated={themeJSON?.bgAnimation && themeJSON.bgAnimation !== 'none' ? 'true' : undefined}
+      data-da={themeJSON?.da}
       style={{
         width: '100%',
         height: '100%',
