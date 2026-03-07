@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@sentry/react": "^10.42.0",
     "@supabase/supabase-js": "^2.98.0",
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",
