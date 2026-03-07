@@ -704,6 +704,15 @@
   background: transparent !important;
 }
 
+/* DB-15 — AnimatedBackground visible : root transparent quand animation active */
+[data-animated="true"] {
+  background: transparent !important;
+}
+/* Thumbnails : garder le fond solide même si animation définie */
+[data-animated="true"][data-thumbnail="true"] {
+  background: var(--slide-bg, var(--bg)) !important;
+}
+
 /* ── DB-10 P1-4 — Layout split de tpl-hero ──────────────────────────────────── */
 .tpl-hero[data-layout="split"] .tpl-hero__content {
   display: flex;

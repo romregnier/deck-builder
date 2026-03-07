@@ -946,6 +946,41 @@ export function DeckEditorPage() {
     setSelectedFieldId(fieldId)
   }
 
+  // DB-11 — Supprimer un item de liste
+  function handleRemoveItem(path: string, index: number) {
+    if (!activeSlide) return
+    const content = { ...(activeSlide.content as Record<string, unknown>) }
+    const parts = path.split('.')
+    if (parts.length === 1) {
+      const arr = content[path]
+      if (!Array.isArray(arr)) return
+      content[path] = arr.filter((_, i) => i !== index)
+    } else if (parts.length === 2) {
+      // e.g. 'left.items' or 'right.items'
+      const obj = (content[parts[0]] as Record<string, unknown>) || {}
+      const arr = Array.isArray(obj[parts[1]]) ? obj[parts[1]] as unknown[] : []
+      content[parts[0]] = { ...obj, [parts[1]]: arr.filter((_, i) => i !== index) }
+    }
+    updateSlideContent(content as SlideContent)
+  }
+
+  // DB-14 — Ajouter un item de liste
+  function handleAddItem(path: string, defaultValue: unknown) {
+    if (!activeSlide) return
+    const content = { ...(activeSlide.content as Record<string, unknown>) }
+    const parts = path.split('.')
+    if (parts.length === 1) {
+      const arr = Array.isArray(content[path]) ? [...(content[path] as unknown[])] : []
+      content[path] = [...arr, defaultValue]
+    } else if (parts.length === 2) {
+      // e.g. 'left.items' or 'right.items'
+      const obj = (content[parts[0]] as Record<string, unknown>) || {}
+      const arr = Array.isArray(obj[parts[1]]) ? [...(obj[parts[1]] as unknown[])] : []
+      content[parts[0]] = { ...obj, [parts[1]]: [...arr, defaultValue] }
+    }
+    updateSlideContent(content as SlideContent)
+  }
+
   function handleImageClick(fieldId: string) {
     const input = document.createElement('input')
     input.type = 'file'
@@ -1391,6 +1426,8 @@ export function DeckEditorPage() {
                     onFieldSelect={handleFieldSelect}
                     onFieldSave={handleFieldSave}
                     onImageClick={handleImageClick}
+                    onRemoveItem={handleRemoveItem}
+                    onAddItem={handleAddItem}
                   />
                 </motion.div>
               </AnimatePresence>

@@ -99,11 +99,16 @@ export interface SlideRendererProps {
   onFieldSelect?: (fieldId: string) => void
   onFieldSave?: (fieldId: string, value: string) => void
   onImageClick?: (fieldId: string) => void
+  // DB-11 — Supprimer un item de liste
+  onRemoveItem?: (path: string, index: number) => void
+  // DB-14 — Ajouter un item de liste
+  onAddItem?: (path: string, defaultValue: unknown) => void
 }
 
 export function SlideRenderer({
   slide, theme, themeJSON, thumbnail = false,
   editMode, selectedFieldId, onFieldSelect, onFieldSave, onImageClick,
+  onRemoveItem, onAddItem,
 }: SlideRendererProps) {
   const dataTheme = THEME_MAP[theme] || 'DARK_PREMIUM'
   const glowEnabled = themeJSON?.glowEffect !== false // default ON
@@ -204,6 +209,8 @@ export function SlideRenderer({
           onFieldSelect,
           onFieldSave,
           onImageClick,
+          onRemoveItem: thumbnail ? undefined : onRemoveItem,
+          onAddItem: thumbnail ? undefined : onAddItem,
         })}
       </div>
     </div>
@@ -216,6 +223,8 @@ interface EditProps {
   onFieldSelect?: (fieldId: string) => void
   onFieldSave?: (fieldId: string, value: string) => void
   onImageClick?: (fieldId: string) => void
+  onRemoveItem?: (path: string, index: number) => void
+  onAddItem?: (path: string, defaultValue: unknown) => void
 }
 
 function renderSlide(
@@ -225,7 +234,23 @@ function renderSlide(
   themeJSON?: DeckThemeJSON,
   edit: EditProps = {},
 ) {
-  const { editMode, selectedFieldId, onFieldSelect, onFieldSave, onImageClick } = edit
+  const { editMode, selectedFieldId, onFieldSelect, onFieldSave, onImageClick, onRemoveItem, onAddItem } = edit
+
+  // DB-11/DB-14 — shared button styles
+  const _removeItemBtnStyle: React.CSSProperties = {
+    background: 'none', border: 'none', color: 'rgba(255,80,80,0.7)',
+    cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px',
+    opacity: 0.6, transition: 'opacity 0.15s', flexShrink: 0,
+  }
+  const _addItemBtnStyle: React.CSSProperties = {
+    display: 'block', width: '100%', marginTop: 8,
+    padding: '6px 12px', borderRadius: 6,
+    border: '1px dashed rgba(225,31,123,0.4)',
+    background: 'rgba(225,31,123,0.05)',
+    color: 'rgba(225,31,123,0.8)', fontSize: 12,
+    cursor: 'pointer', textAlign: 'center',
+    transition: 'all 0.15s',
+  }
   const { type, content } = slide
   const fsize = themeJSON?.fontSize || 'md'
 
@@ -433,33 +458,40 @@ function renderSlide(
       const contentLayout = slideLayout || 'default'
       const contentLayoutClass = contentLayout !== 'default' ? ` layout-${contentLayout}` : ''
 
-      // Editable bullets list
+      // Editable bullets list — DB-11 (×) + DB-14 (+)
       const editableBullets = editMode ? (
         <ul className="tpl-content__bullets">
           {(content.bullets || []).map((b: string, i: number) => (
-            <EditableField
-              key={i}
-              as="li"
-              fieldId={`bullets.${i}`}
-              value={b}
-              onSave={v => onFieldSave?.(`bullets.${i}`, v)}
-              selected={selectedFieldId === `bullets.${i}`}
-              editMode={editMode}
-              onDoubleClick={() => onFieldSelect?.(`bullets.${i}`)}
-              style={{ listStyle: 'disc', marginLeft: 16 }}
-            />
+            <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+              <EditableField
+                as="span"
+                fieldId={`bullets.${i}`}
+                value={b}
+                onSave={v => onFieldSave?.(`bullets.${i}`, v)}
+                selected={selectedFieldId === `bullets.${i}`}
+                editMode={editMode}
+                onDoubleClick={() => onFieldSelect?.(`bullets.${i}`)}
+                style={{ flex: 1 }}
+              />
+              {onRemoveItem && (
+                <button
+                  onClick={() => onRemoveItem('bullets', i)}
+                  title="Supprimer"
+                  style={_removeItemBtnStyle}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+                >×</button>
+              )}
+            </li>
           ))}
-          <li style={{ listStyle: 'none', marginTop: 4 }}>
-            <button
-              onClick={() => {
-                const bullets = [...(content.bullets || []), '']
-                onFieldSave?.('bullets', bullets as unknown as string)
-              }}
-              style={{ fontSize: 11, color: 'rgba(225,31,123,0.6)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              + Ajouter
-            </button>
-          </li>
+          {onAddItem && (
+            <li style={{ listStyle: 'none', marginTop: 4 }}>
+              <button
+                onClick={() => onAddItem('bullets', 'Nouveau point')}
+                style={_addItemBtnStyle}
+              >+ Ajouter</button>
+            </li>
+          )}
         </ul>
       ) : (
         content.bullets && content.bullets.length > 0
@@ -641,7 +673,18 @@ function renderSlide(
               <div key={i} className="tpl-stat-card" style={{
                 ...cardGlowStyle,
                 ...(metric.color ? { background: `${metric.color.replace('linear-gradient', 'linear-gradient').replace(/,\s*#/g, ', #')}08` } : {}),
+                position: 'relative',
               }}>
+                {/* DB-11 — × supprimer métrique */}
+                {editMode && onRemoveItem && (
+                  <button
+                    onClick={() => onRemoveItem('metrics', i)}
+                    title="Supprimer"
+                    style={{ position: 'absolute', top: 4, right: 4, background: 'none', border: 'none', color: 'rgba(255,80,80,0.7)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', opacity: 0.6, zIndex: 2 }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+                  >×</button>
+                )}
                 {editMode ? (
                   <EditableField
                     as="div"
@@ -686,6 +729,13 @@ function renderSlide(
               </div>
             ))}
           </div>
+          {/* DB-14 — + Ajouter une métrique (max 4) */}
+          {editMode && onAddItem && statsItems.length < 4 && (
+            <button
+              onClick={() => onAddItem('metrics', { label: 'Métrique', value: '0' })}
+              style={_addItemBtnStyle}
+            >+ Ajouter une métrique</button>
+          )}
           {statsContent.footnote && (
             <p style={{ fontSize: 11, color: 'var(--text-sec)', fontStyle: 'italic', textAlign: 'center', marginTop: 20, maxWidth: 700 }}>
               {statsContent.footnote}
@@ -889,7 +939,17 @@ function renderSlide(
               pointerEvents: 'none',
             }} />
             {events.map((event, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: thumbnail ? 6 : 24 }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: thumbnail ? 6 : 24, position: 'relative' }}>
+                {/* DB-11 — × supprimer événement */}
+                {editMode && onRemoveItem && !thumbnail && (
+                  <button
+                    onClick={() => onRemoveItem('events', i)}
+                    title="Supprimer"
+                    style={{ position: 'absolute', top: 0, right: -24, background: 'none', border: 'none', color: 'rgba(255,80,80,0.7)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', opacity: 0.6, zIndex: 2 }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+                  >×</button>
+                )}
                 {/* Left side (even) */}
                 <div style={{ flex: 1, textAlign: 'right', opacity: i % 2 === 0 ? 1 : 0 }}>
                   {editMode && i % 2 === 0 ? (
@@ -938,6 +998,13 @@ function renderSlide(
               </div>
             )}
           </div>
+          {/* DB-14 — + Ajouter un événement */}
+          {editMode && onAddItem && !thumbnail && (
+            <button
+              onClick={() => onAddItem('events', { year: 'Q?', label: 'Nouvel événement', desc: '' })}
+              style={_addItemBtnStyle}
+            >+ Ajouter un événement</button>
+          )}
         </div>
       )
     }
@@ -998,8 +1065,25 @@ function renderSlide(
                             {item}
                           </span>
                         )}
+                        {/* DB-11 — × supprimer item colonne */}
+                        {editMode && onRemoveItem && !thumbnail && (
+                          <button
+                            onClick={() => onRemoveItem(i === 0 ? 'left.items' : 'right.items', j)}
+                            title="Supprimer"
+                            style={{ background: 'none', border: 'none', color: 'rgba(255,80,80,0.7)', cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: '0 2px', opacity: 0.6, flexShrink: 0, marginLeft: 4 }}
+                            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                            onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+                          >×</button>
+                        )}
                       </div>
                     ))}
+                    {/* DB-14 — + Ajouter item colonne */}
+                    {editMode && onAddItem && !thumbnail && (
+                      <button
+                        onClick={() => onAddItem(i === 0 ? 'left.items' : 'right.items', 'Nouvel élément')}
+                        style={{ ...(_addItemBtnStyle as React.CSSProperties), marginTop: 4 }}
+                      >+ Ajouter</button>
+                    )}
                   </div>
                 </div>
               )
@@ -1027,7 +1111,17 @@ function renderSlide(
           ) : null}
           <div className="features-grid" data-cols={featureItems.length === 2 ? '2' : featureItems.length >= 4 ? '4' : '3'}>
             {featureItems.map((f, i) => (
-              <div key={i} className="feature-card">
+              <div key={i} className="feature-card" style={{ position: 'relative' }}>
+                {/* DB-11 — × supprimer feature */}
+                {editMode && onRemoveItem && (
+                  <button
+                    onClick={() => onRemoveItem('features', i)}
+                    title="Supprimer"
+                    style={{ position: 'absolute', top: 4, right: 4, background: 'none', border: 'none', color: 'rgba(255,80,80,0.7)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', opacity: 0.6, zIndex: 2 }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+                  >×</button>
+                )}
                 {editMode ? (
                   <EditableField as="div" className="feature-card__icon" value={f.icon || ''} fieldId={`features.${i}.icon`} onSave={v => onFieldSave?.(`features.${i}.icon`, v)} selected={selectedFieldId === `features.${i}.icon`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`features.${i}.icon`)} placeholder="🔥" />
                 ) : f.icon ? (
@@ -1046,6 +1140,13 @@ function renderSlide(
               </div>
             ))}
           </div>
+          {/* DB-14 — + Ajouter une feature */}
+          {editMode && onAddItem && (
+            <button
+              onClick={() => onAddItem('features', { icon: '✨', title: 'Nouvelle feature', desc: 'Description' })}
+              style={_addItemBtnStyle}
+            >+ Ajouter une feature</button>
+          )}
         </div>
       )
     }
@@ -1071,7 +1172,17 @@ function renderSlide(
           ) : null}
           <div className="pricing-grid">
             {tiers.map((t, i) => (
-              <div key={i} className={`pricing-card-wrap${t.featured ? ' featured' : ''}`}>
+              <div key={i} className={`pricing-card-wrap${t.featured ? ' featured' : ''}`} style={{ position: 'relative' }}>
+                {/* DB-11 — × supprimer tier */}
+                {editMode && onRemoveItem && (
+                  <button
+                    onClick={() => onRemoveItem('tiers', i)}
+                    title="Supprimer"
+                    style={{ position: 'absolute', top: 4, right: 4, background: 'none', border: 'none', color: 'rgba(255,80,80,0.7)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', opacity: 0.6, zIndex: 2 }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+                  >×</button>
+                )}
                 {editMode ? (
                   <EditableField as="div" className="pricing-tier" value={t.name || ''} fieldId={`tiers.${i}.name`} onSave={v => onFieldSave?.(`tiers.${i}.name`, v)} selected={selectedFieldId === `tiers.${i}.name`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`tiers.${i}.name`)} placeholder="Nom du tier..." />
                 ) : (
@@ -1098,6 +1209,13 @@ function renderSlide(
               </div>
             ))}
           </div>
+          {/* DB-14 — + Ajouter un tier */}
+          {editMode && onAddItem && (
+            <button
+              onClick={() => onAddItem('tiers', { name: 'Plan', price: '0€', per: '/mois', features: ['Feature 1'], featured: false })}
+              style={_addItemBtnStyle}
+            >+ Ajouter un plan</button>
+          )}
         </div>
       )
     }
@@ -1118,7 +1236,17 @@ function renderSlide(
           ) : null}
           <div className="team-grid">
             {members.map((m, i) => (
-              <div key={i} className="team-card" data-open={m.open ? 'true' : 'false'}>
+              <div key={i} className="team-card" data-open={m.open ? 'true' : 'false'} style={{ position: 'relative' }}>
+                {/* DB-11 — × supprimer membre */}
+                {editMode && onRemoveItem && (
+                  <button
+                    onClick={() => onRemoveItem('members', i)}
+                    title="Supprimer"
+                    style={{ position: 'absolute', top: 4, right: 4, background: 'none', border: 'none', color: 'rgba(255,80,80,0.7)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', opacity: 0.6, zIndex: 2 }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+                  >×</button>
+                )}
                 <div className="team-avatar-circle" style={{ color: m.color || '#E11F7B', borderColor: m.color || '#E11F7B', background: `${m.color || '#E11F7B'}18` }}>
                   {editMode ? (
                     <EditableField as="span" value={m.initial || ''} fieldId={`members.${i}.initial`} onSave={v => onFieldSave?.(`members.${i}.initial`, v)} selected={selectedFieldId === `members.${i}.initial`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`members.${i}.initial`)} placeholder="A" />
@@ -1142,6 +1270,13 @@ function renderSlide(
               </div>
             ))}
           </div>
+          {/* DB-14 — + Ajouter un membre */}
+          {editMode && onAddItem && (
+            <button
+              onClick={() => onAddItem('members', { name: 'Prénom Nom', role: 'Rôle', bio: '', initial: 'P' })}
+              style={_addItemBtnStyle}
+            >+ Ajouter un membre</button>
+          )}
           {teamContent.footnote && <p className="team-footnote">{teamContent.footnote}</p>}
         </div>
       )
@@ -1163,7 +1298,17 @@ function renderSlide(
           ) : null}
           <div className="roadmap-grid">
             {phases.map((p, i) => (
-              <div key={i} className="roadmap-phase">
+              <div key={i} className="roadmap-phase" style={{ position: 'relative' }}>
+                {/* DB-11 — × supprimer phase */}
+                {editMode && onRemoveItem && (
+                  <button
+                    onClick={() => onRemoveItem('phases', i)}
+                    title="Supprimer"
+                    style={{ position: 'absolute', top: 0, right: 0, background: 'none', border: 'none', color: 'rgba(255,80,80,0.7)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', opacity: 0.6, zIndex: 2 }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+                  >×</button>
+                )}
                 <div className="roadmap-dot" data-current={p.current ? 'true' : 'false'} style={{ color: p.color || '#E11F7B', borderColor: p.color || '#E11F7B' }}>
                   {p.icon}
                 </div>
@@ -1188,6 +1333,13 @@ function renderSlide(
               </div>
             ))}
           </div>
+          {/* DB-14 — + Ajouter une phase */}
+          {editMode && onAddItem && (
+            <button
+              onClick={() => onAddItem('phases', { quarter: 'Q?', title: 'Nouvelle phase', items: [], current: false })}
+              style={_addItemBtnStyle}
+            >+ Ajouter une phase</button>
+          )}
         </div>
       )
     }
