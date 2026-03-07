@@ -498,7 +498,12 @@ function renderSlide(
                 </>
               )}
             </div>
-            <div className="tpl-hero__visual" />
+            {/* DB-18 — hero split: image cover dans .tpl-hero__visual */}
+            <div className="tpl-hero__visual">
+              {content.imageUrl && (
+                <img src={content.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="" />
+              )}
+            </div>
           </div>
         )
       }
@@ -652,9 +657,9 @@ function renderSlide(
         </>
       )
 
-      // Image right — with edit overlay
+      // Image right — with edit overlay — DB-18: objectFit cover, full size
       const contentRightInner = content.imageUrl ? (
-        <div style={{ flex: '0 0 38%', borderRadius: 12, overflow: 'hidden', alignSelf: 'stretch', width: '80%', height: '70%', position: 'relative' }}>
+        <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
           <img src={content.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="" />
           {editMode && (
             <div

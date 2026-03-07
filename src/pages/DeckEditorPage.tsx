@@ -147,40 +147,8 @@ function parseThemeJSON(deck: DeckData | null): DeckThemeJSON {
   }
 }
 
-// ── SlideField — composant module-level (FIX A: évite unmount/remount sur re-render) ──
-
-interface SlideFieldProps {
-  label: string
-  field: keyof SlideContent
-  multiline?: boolean
-  content: SlideContent
-  onUpdate: (content: SlideContent) => void
-  fieldStyle: React.CSSProperties
-  fieldLabel: React.CSSProperties
-}
-
-function SlideField({ label, field, multiline = false, content, onUpdate, fieldStyle, fieldLabel }: SlideFieldProps) {
-  const value = (content[field] as string) || ''
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <label style={fieldLabel}>{label}</label>
-      {multiline ? (
-        <textarea
-          value={value}
-          onChange={e => onUpdate({ ...content, [field]: e.target.value })}
-          style={{ ...fieldStyle, minHeight: 72, resize: 'vertical' }}
-        />
-      ) : (
-        <input
-          type="text"
-          value={value}
-          onChange={e => onUpdate({ ...content, [field]: e.target.value })}
-          style={fieldStyle}
-        />
-      )}
-    </div>
-  )
-}
+// ── DB-16 — SlideField supprimé : les champs texte sont désormais éditables inline sur le canvas ──
+// Le PropsPanel ne contient plus que des contrôles de styling (layout, fond, image, items structurels)
 
 // ── PropsPanel ────────────────────────────────────────────────────────────────
 
@@ -269,255 +237,143 @@ function PropsPanel({
         </button>
       </div>
 
-      {/* Fields by type */}
-      {(SlideType === 'hero') && (
-        <>
-          <SlideField label="Eyebrow" field="eyebrow" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <SlideField label="Titre" field="title" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <SlideField label="Sous-titre" field="subtitle" multiline content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-        </>
-      )}
+      {/* DB-16 — Champs texte supprimés : édition inline sur le canvas */}
+      {/* Garder uniquement les contrôles structurels (ajouter/supprimer items) */}
 
       {(SlideType === 'content') && (
-        <>
-          <SlideField label="Label" field="label" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <SlideField label="Titre" field="title" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <SlideField label="Corps" field="body" multiline content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <div style={{ marginBottom: 12 }}>
-            <label style={fieldLabel}>Points clés</label>
-            {(content.bullets || []).map((bullet, i) => (
-              <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-                <input
-                  type="text"
-                  value={bullet}
-                  onChange={e => {
-                    const bullets = [...(content.bullets || [])]
-                    bullets[i] = e.target.value
-                    onUpdate({ ...content, bullets })
-                  }}
-                  style={{ ...fieldStyle, flex: 1 }}
-                />
-                <button
-                  onClick={() => {
-                    const bullets = (content.bullets || []).filter((_, j) => j !== i)
-                    onUpdate({ ...content, bullets })
-                  }}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '0 4px' }}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            <button
-              onClick={() => onUpdate({ ...content, bullets: [...(content.bullets || []), ''] })}
-              style={{
-                background: 'none', border: '1px dashed rgba(255,255,255,0.1)',
-                borderRadius: 6, color: 'rgba(255,255,255,0.3)',
-                fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4,
-                fontFamily: 'Poppins, sans-serif',
-              }}
-            >
-              + Ajouter un point
-            </button>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <label style={fieldLabel}>Points clés ({(content.bullets || []).length})</label>
           </div>
-        </>
+          {(content.bullets || []).map((_, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Point {i + 1}</span>
+              <button
+                onClick={() => {
+                  const bullets = (content.bullets || []).filter((__, j) => j !== i)
+                  onUpdate({ ...content, bullets })
+                }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+              >×</button>
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ ...content, bullets: [...(content.bullets || []), 'Nouveau point'] })}
+            style={{
+              background: 'none', border: '1px dashed rgba(255,255,255,0.1)',
+              borderRadius: 6, color: 'rgba(255,255,255,0.3)',
+              fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4,
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >+ Ajouter un point</button>
+        </div>
       )}
 
       {(SlideType === 'stats') && (
-        <>
-          <SlideField label="Titre" field="title" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <div style={{ marginBottom: 12 }}>
-            <label style={fieldLabel}>Métriques</label>
-            {(content.metrics || []).map((m, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 4, marginBottom: 4 }}>
-                <input
-                  type="text"
-                  placeholder="Valeur"
-                  value={m.value}
-                  onChange={e => {
-                    const metrics = [...(content.metrics || [])]
-                    metrics[i] = { ...metrics[i], value: e.target.value }
-                    onUpdate({ ...content, metrics })
-                  }}
-                  style={fieldStyle}
-                />
-                <input
-                  type="text"
-                  placeholder="Label"
-                  value={m.label}
-                  onChange={e => {
-                    const metrics = [...(content.metrics || [])]
-                    metrics[i] = { ...metrics[i], label: e.target.value }
-                    onUpdate({ ...content, metrics })
-                  }}
-                  style={fieldStyle}
-                />
-                <button
-                  onClick={() => {
-                    const metrics = (content.metrics || []).filter((_, j) => j !== i)
-                    onUpdate({ ...content, metrics })
-                  }}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <label style={fieldLabel}>Métriques ({(content.metrics || []).length})</label>
           </div>
-        </>
-      )}
-
-      {(SlideType === 'quote') && (
-        <>
-          <SlideField label="Citation" field="text" multiline content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <SlideField label="Auteur" field="author" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <SlideField label="Rôle / Titre" field="role" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-        </>
-      )}
-
-      {(SlideType === 'cta') && (
-        <>
-          <SlideField label="Titre" field="title" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <SlideField label="Sous-titre" field="subtitle" multiline content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <SlideField label="Texte du bouton" field="buttonText" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-        </>
+          {(content.metrics || []).map((m, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>{m.value || '—'}</span>
+              <button
+                onClick={() => {
+                  const metrics = (content.metrics || []).filter((__, j) => j !== i)
+                  onUpdate({ ...content, metrics })
+                }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+              >×</button>
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ ...content, metrics: [...(content.metrics || []), { value: '—', label: 'Nouvelle métrique' }] })}
+            style={{
+              background: 'none', border: '1px dashed rgba(255,255,255,0.1)',
+              borderRadius: 6, color: 'rgba(255,255,255,0.3)',
+              fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4,
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >+ Ajouter une métrique</button>
+        </div>
       )}
 
       {(SlideType === 'chart') && (
-        <>
-          <SlideField label="Titre" field="title" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <div style={{ marginBottom: 12 }}>
-            <label style={fieldLabel}>Type de graphique</label>
-            <select
-              value={content.chartType || 'bar'}
-              onChange={e => onUpdate({ ...content, chartType: e.target.value as 'bar' | 'line' | 'pie' | 'donut' })}
-              style={{ ...fieldStyle, cursor: 'pointer' }}
-            >
-              <option value="bar">📊 Bar</option>
-              <option value="line">📈 Line</option>
-              <option value="pie">🥧 Pie</option>
-              <option value="donut">🍩 Donut</option>
-            </select>
-          </div>
-        </>
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>Type de graphique</label>
+          <select
+            value={content.chartType || 'bar'}
+            onChange={e => onUpdate({ ...content, chartType: e.target.value as 'bar' | 'line' | 'pie' | 'donut' })}
+            style={{ ...fieldStyle, cursor: 'pointer' }}
+          >
+            <option value="bar">📊 Bar</option>
+            <option value="line">📈 Line</option>
+            <option value="pie">🥧 Pie</option>
+            <option value="donut">🍩 Donut</option>
+          </select>
+        </div>
       )}
 
-      {/* TK-0052 — Timeline editor */}
+      {/* Timeline — gestion événements (pas d'édition texte — édition inline) */}
       {(SlideType === 'timeline') && (
-        <>
-          <SlideField label="Titre" field="title" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
-          <div style={{ marginBottom: 12 }}>
-            <label style={fieldLabel}>Événements</label>
-            {(content.events || []).map((evt, i) => (
-              <div key={i} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '8px 10px', marginBottom: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-                  <input
-                    type="text"
-                    placeholder="Année / Date"
-                    value={evt.year}
-                    onChange={e => {
-                      const events = [...(content.events || [])]
-                      events[i] = { ...events[i], year: e.target.value }
-                      onUpdate({ ...content, events })
-                    }}
-                    style={{ ...fieldStyle, flex: '0 0 90px' }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Label"
-                    value={evt.label}
-                    onChange={e => {
-                      const events = [...(content.events || [])]
-                      events[i] = { ...events[i], label: e.target.value }
-                      onUpdate({ ...content, events })
-                    }}
-                    style={{ ...fieldStyle, flex: 1 }}
-                  />
-                  <button
-                    onClick={() => {
-                      const events = (content.events || []).filter((_, j) => j !== i)
-                      onUpdate({ ...content, events })
-                    }}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '0 4px' }}
-                  >×</button>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Description (optionnel)"
-                  value={evt.desc || ''}
-                  onChange={e => {
-                    const events = [...(content.events || [])]
-                    events[i] = { ...events[i], desc: e.target.value }
-                    onUpdate({ ...content, events })
-                  }}
-                  style={{ ...fieldStyle, width: '100%' }}
-                />
-              </div>
-            ))}
-            <button
-              onClick={() => onUpdate({ ...content, events: [...(content.events || []), { year: '', label: '', desc: '' }] })}
-              style={{
-                background: 'none', border: '1px dashed rgba(255,255,255,0.1)',
-                borderRadius: 6, color: 'rgba(255,255,255,0.3)',
-                fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4,
-                fontFamily: 'Poppins, sans-serif',
-              }}
-            >
-              + Ajouter un événement
-            </button>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <label style={fieldLabel}>Événements ({(content.events || []).length})</label>
           </div>
-        </>
+          {(content.events || []).map((evt, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>{evt.year || `Étape ${i + 1}`} — {evt.label || '…'}</span>
+              <button
+                onClick={() => {
+                  const events = (content.events || []).filter((__, j) => j !== i)
+                  onUpdate({ ...content, events })
+                }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+              >×</button>
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ ...content, events: [...(content.events || []), { year: '', label: 'Nouvel événement', desc: '' }] })}
+            style={{
+              background: 'none', border: '1px dashed rgba(255,255,255,0.1)',
+              borderRadius: 6, color: 'rgba(255,255,255,0.3)',
+              fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4,
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >+ Ajouter un événement</button>
+        </div>
       )}
 
-      {/* TK-0053 — Comparison editor */}
+      {/* Comparison — gestion colonnes (pas d'édition texte — édition inline) */}
       {(SlideType === 'comparison') && (
         <>
-          <SlideField label="Titre" field="title" content={content} onUpdate={onUpdate} fieldStyle={fieldStyle} fieldLabel={fieldLabel} />
           {(['left', 'right'] as const).map(side => {
             const col = content[side] || { label: side === 'left' ? 'Avant' : 'Après', items: [] }
-            const sideLabel = side === 'left' ? '⬅ Colonne gauche' : '➡ Colonne droite'
+            const sideLabel = side === 'left' ? '⬅ Gauche' : '➡ Droite'
             return (
               <div key={side} style={{ marginBottom: 12 }}>
-                <label style={fieldLabel}>{sideLabel}</label>
-                <input
-                  type="text"
-                  placeholder="Label de la colonne"
-                  value={col.label || ''}
-                  onChange={e => onUpdate({ ...content, [side]: { ...col, label: e.target.value } })}
-                  style={{ ...fieldStyle, marginBottom: 6 }}
-                />
-                {(col.items || []).map((item, j) => (
-                  <div key={j} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-                    <input
-                      type="text"
-                      value={item}
-                      onChange={e => {
-                        const items = [...(col.items || [])]
-                        items[j] = e.target.value
-                        onUpdate({ ...content, [side]: { ...col, items } })
-                      }}
-                      style={{ ...fieldStyle, flex: 1 }}
-                    />
+                <label style={fieldLabel}>{sideLabel} ({(col.items || []).length} items)</label>
+                {(col.items || []).map((_, j) => (
+                  <div key={j} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Item {j + 1}</span>
                     <button
                       onClick={() => {
-                        const items = (col.items || []).filter((_, k) => k !== j)
+                        const items = (col.items || []).filter((__, k) => k !== j)
                         onUpdate({ ...content, [side]: { ...col, items } })
                       }}
-                      style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '0 4px' }}
+                      style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
                     >×</button>
                   </div>
                 ))}
                 <button
-                  onClick={() => onUpdate({ ...content, [side]: { ...col, items: [...(col.items || []), ''] } })}
+                  onClick={() => onUpdate({ ...content, [side]: { ...col, items: [...(col.items || []), 'Nouvel item'] } })}
                   style={{
                     background: 'none', border: '1px dashed rgba(255,255,255,0.1)',
                     borderRadius: 6, color: 'rgba(255,255,255,0.3)',
                     fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 2,
                     fontFamily: 'Poppins, sans-serif',
                   }}
-                >
-                  + Ajouter un point
-                </button>
+                >+ Ajouter un point</button>
               </div>
             )
           })}
@@ -1881,9 +1737,22 @@ function StylePanel({
       <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <p style={{ ...sectionTitle, marginTop: 4 }}>Direction artistique</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {/* Bouton reset DA */}
+          {/* Bouton reset DA — DB-19 : remet les vraies valeurs Orion Dark */}
           <button
-            onClick={() => onUpdate({ da: undefined }).then(() => {})}
+            onClick={() => onUpdate({
+              da: undefined,
+              bgColor: '#0B090D',
+              accentColor: '#E11F7B',
+              secondaryAccent: '#7C3AED',
+              textColor: '#F5F0F7',
+              textPrimary: '#F5F0F7',
+              textSecondary: '#9B92A0',
+              fontFamily: 'Poppins' as const,
+              bgAnimation: undefined,
+              glowEffect: true,
+              gradientText: true,
+              noiseEnabled: false,
+            }).then(() => {})}
             style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8,
               background: !themeJSON?.da ? 'rgba(225,31,123,0.12)' : 'rgba(255,255,255,0.03)',

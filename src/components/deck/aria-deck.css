@@ -1483,6 +1483,67 @@
 
 
 /* ═══════════════════════════════════════════
+   DB-18 — Images dans templates : objectFit cover pleine surface
+   ═══════════════════════════════════════════ */
+
+/* Content template — colonne droite image */
+.tpl-content__right {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+.tpl-content__right img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Hero split — visual */
+.tpl-hero[data-layout="split"] .tpl-hero__visual {
+  overflow: hidden;
+  padding: 0;
+}
+
+/* ═══════════════════════════════════════════
+   DB-17 — Thumbnails : rendu fidèle aux slides
+   ═══════════════════════════════════════════ */
+
+/* Base font réduite pour cohérence de rendu */
+[data-thumbnail="true"] {
+  font-size: 40%;
+}
+
+/* Toutes les animations désactivées en thumbnail */
+[data-thumbnail="true"] * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Polices des DAs appliquées en thumbnail */
+[data-thumbnail="true"][data-da="editorial"] .tpl-hero__title,
+[data-thumbnail="true"][data-da="editorial"] h2 {
+  font-family: 'Playfair Display', Georgia, serif !important;
+  font-style: italic !important;
+}
+
+[data-thumbnail="true"][data-da="neon"] .tpl-hero__title,
+[data-thumbnail="true"][data-da="neon"] h2 {
+  font-family: 'Space Grotesk', sans-serif !important;
+}
+
+[data-thumbnail="true"][data-da="soft"] .tpl-hero__title,
+[data-thumbnail="true"][data-da="soft"] h2 {
+  font-family: 'DM Sans', sans-serif !important;
+}
+
+[data-thumbnail="true"][data-da="terminal"] .tpl-hero__title,
+[data-thumbnail="true"][data-da="terminal"] h2 {
+  font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+}
+
+/* ═══════════════════════════════════════════
    prefers-reduced-motion — DB-08
    ═══════════════════════════════════════════ */
 
