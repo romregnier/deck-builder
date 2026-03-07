@@ -105,8 +105,8 @@ export function EditableField({
     caretColor: '#E11F7B',
     minWidth: 20,
     borderBottom: '1px dashed rgba(225,31,123,0.35)',
-    ...style,
-  } : style
+    ...(style || {}),
+  } : (style || {})
 
   return React.createElement(Tag as string, {
     ref,
