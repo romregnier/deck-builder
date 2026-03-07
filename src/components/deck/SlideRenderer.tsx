@@ -1,0 +1,1400 @@
+/**
+ * SlideRenderer.tsx — Template engine pour les slides
+ * TK-0034-0039 / TK-0040 (charts module)
+ *
+ * Rend une slide selon son type en utilisant les classes CSS d'Aria.
+ * TK-0040: 4 types de graphiques SVG natif — Bar, Line, Pie, Donut
+ * FIX-VISUAL: glow atmosphérique, gradient text hero, typographie agrandie,
+ *             card glow stats/quote, pillar line content
+ */
+import './aria-deck.css'
+import React from 'react'
+import type { SlideJSON, DeckTheme, DeckThemeJSON, SlideBackground } from '../../types/deck'
+import { BACKGROUND_PRESETS } from '../../types/deck'
+import { EditableField } from './EditableField'
+
+// ── Background CSS helper ─────────────────────────────────────────────────────
+function getSlideBackground(bg?: SlideBackground, theme?: DeckThemeJSON): string {
+  if (!bg || bg.mode === 'theme') return theme?.bgColor ?? ''
+  if (bg.mode === 'solid') return bg.solidColor ?? ''
+  if (bg.mode === 'gradient') {
+    const angle = bg.gradientAngle ?? 135
+    const c1 = bg.gradientColor1 ?? '#1A0533'
+    const c2 = bg.gradientColor2 ?? '#0D1B4A'
+    return `linear-gradient(${angle}deg, ${c1} 0%, ${c2} 100%)`
+  }
+  if (bg.mode === 'preset') {
+    const preset = BACKGROUND_PRESETS.find(p => p.id === bg.presetId)
+    return preset?.css ?? (theme?.bgColor ?? '')
+  }
+  return theme?.bgColor ?? ''
+}
+
+// Map theme key → data-theme attribute
+const THEME_MAP: Record<string, string> = {
+  dark_premium: 'DARK_PREMIUM',
+  light_clean: 'LIGHT_CLEAN',
+  gradient_bold: 'GRADIENT_BOLD',
+  corporate: 'CORPORATE',
+  DARK_PREMIUM: 'DARK_PREMIUM',
+  LIGHT_CLEAN: 'LIGHT_CLEAN',
+  GRADIENT_BOLD: 'GRADIENT_BOLD',
+  CORPORATE: 'CORPORATE',
+}
+
+// ── Atmospheric glow per slide type ─────────────────────────────────────────
+const SLIDE_GLOWS: Record<string, string> = {
+  hero:       'radial-gradient(ellipse 70% 70% at 50% 50%, rgba(225,31,123,0.10) 0%, transparent 70%)',
+  content:    'radial-gradient(ellipse 60% 60% at 20% 50%, rgba(124,58,237,0.08) 0%, transparent 70%)',
+  stats:      'radial-gradient(ellipse 60% 60% at 80% 50%, rgba(0,212,255,0.07) 0%, transparent 70%)',
+  quote:      'radial-gradient(ellipse 50% 70% at 30% 50%, rgba(124,58,237,0.09) 0%, transparent 70%)',
+  cta:        'radial-gradient(ellipse 70% 80% at 50% 50%, rgba(225,31,123,0.12) 0%, rgba(124,58,237,0.06) 50%, transparent 80%)',
+  chart:      'radial-gradient(ellipse 60% 60% at 70% 50%, rgba(0,212,255,0.07) 0%, transparent 70%)',
+  timeline:   'radial-gradient(ellipse 60% 80% at 50% 40%, rgba(124,58,237,0.10) 0%, transparent 70%)',
+  comparison: 'radial-gradient(ellipse 80% 60% at 50% 50%, rgba(225,31,123,0.08) 0%, rgba(0,212,255,0.05) 60%, transparent 80%)',
+  features:   'radial-gradient(ellipse 70% 70% at 50% 30%, rgba(124,58,237,0.08) 0%, transparent 70%)',
+  pricing:    'radial-gradient(ellipse 80% 60% at 50% 50%, rgba(225,31,123,0.08) 0%, rgba(124,58,237,0.05) 60%, transparent 80%)',
+  team:       'radial-gradient(ellipse 60% 60% at 50% 30%, rgba(0,212,255,0.07) 0%, transparent 70%)',
+  roadmap:    'radial-gradient(ellipse 80% 50% at 50% 50%, rgba(225,31,123,0.07) 0%, rgba(0,212,255,0.04) 60%, transparent 80%)',
+  market:     'radial-gradient(ellipse 60% 70% at 80% 50%, rgba(225,31,123,0.08) 0%, transparent 70%)',
+  orbit:      'radial-gradient(ellipse 60% 70% at 30% 50%, rgba(124,58,237,0.09) 0%, transparent 70%)',
+  mockup:     'radial-gradient(ellipse 70% 60% at 50% 40%, rgba(0,212,255,0.07) 0%, transparent 70%)',
+}
+
+// ── Eyebrow component ────────────────────────────────────────────────────────
+export function Eyebrow({ text, style }: { text: string; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
+      textTransform: 'uppercase', color: 'var(--accent, #E11F7B)',
+      display: 'flex', alignItems: 'center', gap: 8,
+      marginBottom: 20, ...style,
+    }}>
+      <span style={{ width: 24, height: 1.5, background: 'var(--accent, #E11F7B)', display: 'block', flexShrink: 0 }} />
+      {text}
+    </div>
+  )
+}
+
+export interface SlideRendererProps {
+  slide: SlideJSON
+  theme: DeckTheme | string
+  /** CSS variables injected from theme_json (accent, bg, gradient, text) */
+  themeJSON?: DeckThemeJSON
+  /** Si true, affiche en mode miniature (désactive les animations) */
+  thumbnail?: boolean
+  // ── Inline edit ──
+  editMode?: boolean
+  selectedFieldId?: string | null
+  onFieldSelect?: (fieldId: string) => void
+  onFieldSave?: (fieldId: string, value: string) => void
+  onImageClick?: (fieldId: string) => void
+}
+
+export function SlideRenderer({
+  slide, theme, themeJSON, thumbnail = false,
+  editMode, selectedFieldId, onFieldSelect, onFieldSave, onImageClick,
+}: SlideRendererProps) {
+  const dataTheme = THEME_MAP[theme] || 'DARK_PREMIUM'
+  const glowEnabled = themeJSON?.glowEffect !== false // default ON
+  const gradientTextEnabled = themeJSON?.gradientText !== false // default ON
+
+  // Build CSS vars from themeJSON
+  const cssVars: React.CSSProperties = {}
+  if (themeJSON?.accentColor) (cssVars as Record<string, string>)['--accent'] = themeJSON.accentColor
+  if (themeJSON?.bgColor) {
+    (cssVars as Record<string, string>)['--bg'] = themeJSON.bgColor
+    ;(cssVars as Record<string, string>)['--slide-bg'] = themeJSON.bgColor
+    // FIX C2 — n'appliquer le background solide que si pas de fond animé actif
+    if (!themeJSON.bgAnimation || themeJSON.bgAnimation === 'none') {
+      ;(cssVars as Record<string, string>)['background'] = themeJSON.bgColor
+    }
+  }
+  if (themeJSON?.accentGradient) (cssVars as Record<string, string>)['--gradient'] = themeJSON.accentGradient
+  if (themeJSON?.textColor) {
+    (cssVars as Record<string, string>)['--text-pri'] = themeJSON.textColor
+    ;(cssVars as Record<string, string>)['--text'] = themeJSON.textColor
+  }
+  // Sprint 3 — CSS vars supplémentaires
+  ;(cssVars as Record<string, string>)['--accent-secondary'] =
+    themeJSON?.secondaryAccent || themeJSON?.accentColor || '#7C3AED'
+  // Sprint 3 — Stagger animatino delay as CSS var (ms)
+  ;(cssVars as Record<string, string>)['--stagger'] =
+    `${themeJSON?.animationStagger ?? 100}ms`
+  if (themeJSON?.textPrimary) {
+    (cssVars as Record<string, string>)['--text-pri'] = themeJSON.textPrimary
+    ;(cssVars as Record<string, string>)['--text'] = themeJSON.textPrimary
+  }
+  if (themeJSON?.textSecondary) {
+    (cssVars as Record<string, string>)['--text-sec'] = themeJSON.textSecondary === 'auto'
+      ? `${themeJSON.textPrimary || '#F5F0F7'}80`
+      : themeJSON.textSecondary
+  }
+
+  // Apply per-slide background override
+  const slideBg = (slide.content as { slideBackground?: SlideBackground }).slideBackground
+  const slideBgCSS = getSlideBackground(slideBg, themeJSON)
+  if (slideBgCSS) {
+    (cssVars as Record<string, string>)['background'] = slideBgCSS
+  }
+
+  return (
+    <div
+      data-theme={dataTheme}
+      style={{
+        width: '100%',
+        height: '100%',
+        fontFamily: `${themeJSON?.fontFamily || 'Poppins'}, sans-serif`,
+        overflow: 'hidden',
+        position: 'relative',
+        ...cssVars,
+      }}
+    >
+      {/* Atmospheric glow layer — FIX D: zIndex 3 + overlay blend */}
+      {glowEnabled && !thumbnail && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            background: SLIDE_GLOWS[slide.type] || SLIDE_GLOWS.content,
+            zIndex: 3,
+            mixBlendMode: 'overlay',
+          }}
+        />
+      )}
+      {/* Noise grain overlay — Sprint 3 — FIX G: screen blend + 0.08 default */}
+      {!thumbnail && themeJSON?.noiseEnabled && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            zIndex: 2,
+            opacity: themeJSON.noiseOpacity ?? 0.08,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+            mixBlendMode: 'screen',
+          }}
+        />
+      )}
+      {/* Slide content */}
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%' }}>
+        {renderSlide(slide, thumbnail, gradientTextEnabled, themeJSON, {
+          editMode: thumbnail ? false : editMode,
+          selectedFieldId,
+          onFieldSelect,
+          onFieldSave,
+          onImageClick,
+        })}
+      </div>
+    </div>
+  )
+}
+
+interface EditProps {
+  editMode?: boolean
+  selectedFieldId?: string | null
+  onFieldSelect?: (fieldId: string) => void
+  onFieldSave?: (fieldId: string, value: string) => void
+  onImageClick?: (fieldId: string) => void
+}
+
+function renderSlide(
+  slide: SlideJSON,
+  thumbnail: boolean,
+  gradientText: boolean,
+  themeJSON?: DeckThemeJSON,
+  edit: EditProps = {},
+) {
+  const { editMode, selectedFieldId, onFieldSelect, onFieldSave, onImageClick } = edit
+  const { type, content } = slide
+  const fsize = themeJSON?.fontSize || 'md'
+
+  // Font size multipliers
+  const heroTitleSize = fsize === 'xl' ? 'clamp(52px, 6.5cqw, 92px)'
+    : fsize === 'lg' ? 'clamp(46px, 5.8cqw, 82px)'
+    : fsize === 'sm' ? 'clamp(32px, 4cqw, 56px)'
+    : 'clamp(40px, 5cqw, 72px)' // md default
+
+  const statsValSize = fsize === 'xl' ? 'clamp(40px, 5cqw, 70px)'
+    : fsize === 'lg' ? 'clamp(36px, 4.5cqw, 62px)'
+    : fsize === 'sm' ? 'clamp(24px, 3cqw, 42px)'
+    : 'clamp(32px, 4cqw, 56px)' // md default
+
+  // FIX E + B12 — gradient texte dynamique avec secondaryAccent
+  const gradientTextStyle: React.CSSProperties = gradientText ? {
+    background: `linear-gradient(135deg, ${themeJSON?.accentColor || '#E11F7B'} 0%, ${themeJSON?.secondaryAccent || '#7C3AED'} 50%, #00d4ff 100%)`,
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+  } : {}
+
+  const cardGlowStyle: React.CSSProperties = {
+    boxShadow: `0 0 40px rgba(225,31,123,0.12), inset 0 1px 0 rgba(255,255,255,0.06)`,
+    border: '1px solid rgba(255,255,255,0.08)',
+    backdropFilter: 'blur(8px)',
+  }
+
+  const slideLayout = (content as { layout?: string }).layout
+
+  switch (type) {
+    case 'hero': {
+      // FIX B — keys alignées avec CSS: default/left/split/fullbleed
+      const heroLayout = slideLayout || 'default'
+      const layoutClass = heroLayout !== 'default' ? ` layout-${heroLayout}` : ''
+
+      const heroTextContent = (
+        <>
+          {/* Image de fond — en mode édition, clic = file picker */}
+          {content.imageUrl ? (
+            <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: editMode ? 'auto' : 'none' }}>
+              <div style={{
+                position: 'absolute', inset: 0,
+                backgroundImage: `url(${content.imageUrl})`,
+                backgroundSize: 'cover', backgroundPosition: 'center',
+                opacity: 0.18, mixBlendMode: 'overlay',
+              }} />
+              {editMode && (
+                <div
+                  onClick={() => onImageClick?.('imageUrl')}
+                  style={{
+                    position: 'absolute', inset: 0, cursor: 'pointer', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(0,0,0,0)', transition: 'background 0.2s', zIndex: 2,
+                  }}
+                  onMouseEnter={e => { (e.currentTarget.style.background = 'rgba(225,31,123,0.15)'); (e.currentTarget.querySelector('span') as HTMLElement).style.opacity = '1' }}
+                  onMouseLeave={e => { (e.currentTarget.style.background = 'rgba(0,0,0,0)'); (e.currentTarget.querySelector('span') as HTMLElement).style.opacity = '0' }}
+                >
+                  <span style={{ fontSize: 24, opacity: 0, transition: 'opacity 0.2s' }}>📷</span>
+                </div>
+              )}
+            </div>
+          ) : editMode ? (
+            <div
+              onClick={() => onImageClick?.('imageUrl')}
+              style={{
+                position: 'absolute', inset: 0, zIndex: 0, cursor: 'pointer',
+                border: '2px dashed rgba(225,31,123,0.3)', borderRadius: 8,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,0,0,0)', transition: 'background 0.2s',
+                pointerEvents: 'auto',
+              }}
+              onMouseEnter={e => { (e.currentTarget.style.background = 'rgba(225,31,123,0.08)'); (e.currentTarget.querySelector('span') as HTMLElement).style.opacity = '1' }}
+              onMouseLeave={e => { (e.currentTarget.style.background = 'rgba(0,0,0,0)'); (e.currentTarget.querySelector('span') as HTMLElement).style.opacity = '0' }}
+            >
+              <span style={{ fontSize: 14, color: 'rgba(225,31,123,0.5)', opacity: 0, transition: 'opacity 0.2s' }}>📷 Ajouter une image</span>
+            </div>
+          ) : null}
+          {/* Eyebrow */}
+          {editMode ? (
+            <EditableField
+              as="div"
+              className="tpl-hero__eyebrow"
+              value={content.eyebrow || ''}
+              fieldId="eyebrow"
+              onSave={v => onFieldSave?.('eyebrow', v)}
+              selected={selectedFieldId === 'eyebrow'}
+              editMode={editMode}
+              onDoubleClick={() => onFieldSelect?.('eyebrow')}
+              style={{ position: 'relative', zIndex: 1 }}
+              placeholder="Eyebrow text..."
+            />
+          ) : content.eyebrow ? (
+            <div className="tpl-hero__eyebrow" style={{ position: 'relative', zIndex: 1 }}>{content.eyebrow}</div>
+          ) : null}
+          {/* Title */}
+          {editMode ? (
+            <EditableField
+              as="h1"
+              className="tpl-hero__title"
+              value={content.title || ''}
+              fieldId="title"
+              onSave={v => onFieldSave?.('title', v)}
+              selected={selectedFieldId === 'title'}
+              editMode={editMode}
+              onDoubleClick={() => onFieldSelect?.('title')}
+              style={{
+                fontSize: heroLayout === 'fullbleed' ? 'clamp(48px, 7.5cqw, 108px)' : heroTitleSize,
+                fontWeight: 800,
+                letterSpacing: '-0.03em',
+                lineHeight: 1.05,
+                position: 'relative', zIndex: 1,
+                ...gradientTextStyle,
+              }}
+              placeholder="Titre principal..."
+            />
+          ) : content.title ? (
+            <h1
+              className="tpl-hero__title"
+              style={{
+                fontSize: heroLayout === 'fullbleed' ? 'clamp(48px, 7.5cqw, 108px)' : heroTitleSize,
+                fontWeight: 800,
+                letterSpacing: '-0.03em',
+                lineHeight: 1.05,
+                position: 'relative', zIndex: 1,
+                ...gradientTextStyle,
+              }}
+            >
+              {content.title}
+            </h1>
+          ) : null}
+          {/* Subtitle */}
+          {heroLayout !== 'fullbleed' && (editMode ? (
+            <EditableField
+              as="p"
+              className="tpl-hero__sub"
+              value={content.subtitle || ''}
+              fieldId="subtitle"
+              onSave={v => onFieldSave?.('subtitle', v)}
+              selected={selectedFieldId === 'subtitle'}
+              editMode={editMode}
+              multiline
+              onDoubleClick={() => onFieldSelect?.('subtitle')}
+              style={{ position: 'relative', zIndex: 1 }}
+              placeholder="Sous-titre..."
+            />
+          ) : content.subtitle ? (
+            <p className="tpl-hero__sub" style={{ position: 'relative', zIndex: 1 }}>{content.subtitle}</p>
+          ) : null)}
+        </>
+      )
+
+      if (heroLayout === 'split') {
+        return (
+          <div className={`tpl-hero${layoutClass}`} data-layout={slideLayout || 'default'} style={{ height: '100%', position: 'relative' }}>
+            <div className="tpl-hero__content">
+              {editMode ? (
+                <>
+                  <EditableField as="div" className="tpl-hero__eyebrow" value={content.eyebrow || ''} fieldId="eyebrow" onSave={v => onFieldSave?.('eyebrow', v)} selected={selectedFieldId === 'eyebrow'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('eyebrow')} placeholder="Eyebrow..." />
+                  <EditableField as="h1" className="tpl-hero__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: heroTitleSize, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.05, ...gradientTextStyle }} placeholder="Titre..." />
+                  <EditableField as="p" className="tpl-hero__sub" value={content.subtitle || ''} fieldId="subtitle" onSave={v => onFieldSave?.('subtitle', v)} selected={selectedFieldId === 'subtitle'} editMode={editMode} multiline onDoubleClick={() => onFieldSelect?.('subtitle')} placeholder="Sous-titre..." />
+                </>
+              ) : (
+                <>
+                  {content.eyebrow && <div className="tpl-hero__eyebrow">{content.eyebrow}</div>}
+                  {content.title && (
+                    <h1 className="tpl-hero__title" style={{ fontSize: heroTitleSize, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.05, ...gradientTextStyle }}>
+                      {content.title}
+                    </h1>
+                  )}
+                  {content.subtitle && <p className="tpl-hero__sub">{content.subtitle}</p>}
+                </>
+              )}
+            </div>
+            <div className="tpl-hero__visual" />
+          </div>
+        )
+      }
+
+      return (
+        <div className={`tpl-hero${layoutClass}`} data-layout={slideLayout || 'default'} style={{ height: '100%', position: 'relative' }}>
+          {heroTextContent}
+          {/* Hero footer badges */}
+          {((content as {heroFooter?: Array<{icon: string; label: string}>}).heroFooter?.length || (content as {heroBadge?: string}).heroBadge) && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 28, position: 'relative', zIndex: 1 }}>
+              {((content as {heroFooter?: Array<{icon: string; label: string}>}).heroFooter || []).map((b, i) => (
+                <div key={i} style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, fontSize: 11, color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {b.icon} {b.label}
+                </div>
+              ))}
+              {(content as {heroBadge?: string}).heroBadge && (
+                <div style={{ padding: '8px 16px', background: 'rgba(225,31,123,0.1)', border: '1px solid rgba(225,31,123,0.3)', borderRadius: 20, fontSize: 11, color: '#E11F7B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#E11F7B', animation: 'blink 2s ease-in-out infinite', display: 'inline-block' }} />
+                  {(content as {heroBadge: string}).heroBadge}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    case 'content': {
+      // FIX B — keys alignées avec CSS: default/text-only/text-right/two-col
+      const contentLayout = slideLayout || 'default'
+      const contentLayoutClass = contentLayout !== 'default' ? ` layout-${contentLayout}` : ''
+
+      const contentLeftInner = (
+        <>
+          {/* Pillar accent line */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              left: 0, top: '10%', bottom: '10%', width: 3,
+              background: `linear-gradient(180deg, var(--accent, #E11F7B), transparent)`,
+              borderRadius: 3,
+            }}
+          />
+          <div style={{ paddingLeft: 16 }}>
+            {content.label && <div className="tpl-content__label">{content.label}</div>}
+            {content.title && <h2 className="tpl-content__title">{content.title}</h2>}
+            {content.body && <p className="tpl-content__body">{content.body}</p>}
+            {content.bullets && content.bullets.length > 0 && (
+              <ul className="tpl-content__bullets">
+                {content.bullets.map((bullet, i) => <li key={i}>{bullet}</li>)}
+              </ul>
+            )}
+          </div>
+        </>
+      )
+
+      const contentRightInner = content.imageUrl ? (
+        <div style={{ flex: '0 0 38%', borderRadius: 12, overflow: 'hidden', alignSelf: 'stretch', width: '80%', height: '70%' }}>
+          <img src={content.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="" />
+        </div>
+      ) : (
+        <div style={{ width: '60%', height: '60%', borderRadius: 16, background: 'var(--accent)', opacity: 0.15, transform: 'rotate(-8deg)' }} />
+      )
+
+      // FIX B — text-only (ex-centré): panneau centré plein largeur
+      if (contentLayout === 'text-only') {
+        return (
+          <div className={`tpl-content${contentLayoutClass}`} data-layout="text-only" style={{ height: '100%' }}>
+            <div className="tpl-content__left" style={{ position: 'relative', width: '100%', padding: '8% 14%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+              {content.label && <div className="tpl-content__label">{content.label}</div>}
+              {content.title && <h2 className="tpl-content__title">{content.title}</h2>}
+              {content.body && <p className="tpl-content__body">{content.body}</p>}
+              {content.bullets && content.bullets.length > 0 && (
+                <ul className="tpl-content__bullets" style={{ columns: 2, gap: 24, textAlign: 'left', marginTop: 20 }}>
+                  {content.bullets.map((bullet, i) => <li key={i}>{bullet}</li>)}
+                </ul>
+              )}
+            </div>
+          </div>
+        )
+      }
+
+      // FIX B — two-col (ex-grille): grille 2 colonnes
+      if (contentLayout === 'two-col') {
+        return (
+          <div className={`tpl-content${contentLayoutClass}`} data-layout="two-col" style={{ height: '100%' }}>
+            <div className="tpl-content__left" style={{ position: 'relative', padding: '7% 8%', display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: 'auto 1fr', gap: '0 32px', height: '100%' }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                {content.label && <div className="tpl-content__label">{content.label}</div>}
+                {content.title && <h2 className="tpl-content__title">{content.title}</h2>}
+              </div>
+              <div style={{ paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                {content.body && <p className="tpl-content__body">{content.body}</p>}
+              </div>
+              <div style={{ paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                {content.bullets && content.bullets.length > 0 && (
+                  <ul className="tpl-content__bullets">
+                    {content.bullets.map((bullet, i) => <li key={i}>{bullet}</li>)}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      return (
+        <div className={`tpl-content${contentLayoutClass}`} data-layout={slideLayout || 'default'} style={{ height: '100%' }}>
+          <div className="tpl-content__left" style={{ position: 'relative' }}>
+            {contentLeftInner}
+          </div>
+          <div className="tpl-content__right">
+            {contentRightInner}
+          </div>
+        </div>
+      )
+    }
+
+    case 'stats': {
+      // FIX B — keys alignées avec CSS: default/two-col/row
+      const statsLayout = slideLayout || 'default'
+      const statsLayoutClass = statsLayout !== 'default' ? ` layout-${statsLayout}` : ''
+      const statsContent = content as {
+        eyebrow?: string; title?: string; metrics?: Array<{value: string; label: string; desc?: string; baseline?: string; color?: string}>;
+        stats?: Array<{value: string; desc?: string; baseline?: string; color?: string}>; footnote?: string
+      }
+      const statsItems = statsContent.stats || statsContent.metrics || []
+
+      return (
+        <div className={`tpl-stats${statsLayoutClass}`} data-layout={slideLayout || 'default'} style={{ height: '100%' }}>
+          <div className="tpl-stats__header">
+            {statsContent.eyebrow && <Eyebrow text={statsContent.eyebrow} style={{ justifyContent: 'center' }} />}
+            {statsContent.title && <h2 className="tpl-stats__title" style={gradientText ? gradientTextStyle : {}}>{statsContent.title}</h2>}
+          </div>
+          <div className="tpl-stats__grid stats-grid">
+            {statsItems.slice(0, 4).map((metric, i) => (
+              <div key={i} className="tpl-stat-card" style={{
+                ...cardGlowStyle,
+                ...(metric.color ? { background: `${metric.color.replace('linear-gradient', 'linear-gradient').replace(/,\s*#/g, ', #')}08` } : {}),
+              }}>
+                <div
+                  className="tpl-stat-card__value"
+                  style={{ fontSize: statsValSize, fontWeight: 900, ...(metric.color ? { background: metric.color, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' } : {}), ...(thumbnail ? { animation: 'none' } : undefined) }}
+                >
+                  {metric.value}
+                </div>
+                <div className="tpl-stat-card__label">{(metric as {label?: string}).label || ''}</div>
+                {(metric.desc || metric.baseline) && (
+                  <div style={{ fontSize: 10, color: 'var(--text-sec)', marginTop: 6, lineHeight: 1.4, opacity: 0.8 }}>
+                    {metric.desc || metric.baseline}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {statsContent.footnote && (
+            <p style={{ fontSize: 11, color: 'var(--text-sec)', fontStyle: 'italic', textAlign: 'center', marginTop: 20, maxWidth: 700 }}>
+              {statsContent.footnote}
+            </p>
+          )}
+        </div>
+      )
+    }
+
+    case 'quote':
+      return (
+        <div className="tpl-quote" data-layout={slideLayout || 'default'} style={{ height: '100%' }}>
+          {content.text && (
+            <blockquote
+              className="tpl-quote__text"
+              style={cardGlowStyle}
+            >
+              &ldquo;{content.text}&rdquo;
+            </blockquote>
+          )}
+          {content.author && (
+            <div className="tpl-quote__author">{content.author}</div>
+          )}
+          {content.role && (
+            <div className="tpl-quote__role">{content.role}</div>
+          )}
+        </div>
+      )
+
+    case 'cta': {
+      const ctaContent = content as {
+        eyebrow?: string; title?: string; subtitle?: string; buttonText?: string; cta?: string;
+        allocations?: Array<{pct: string; title: string; desc?: string; color?: string}>
+      }
+      return (
+        <div className="tpl-cta" data-layout={slideLayout || 'default'} style={{ height: '100%' }}>
+          {ctaContent.eyebrow && <Eyebrow text={ctaContent.eyebrow} style={{ justifyContent: 'center' }} />}
+          {ctaContent.title && (
+            <h2 className="tpl-cta__title" style={gradientText ? gradientTextStyle : {}}>{ctaContent.title}</h2>
+          )}
+          {ctaContent.subtitle && (
+            <p className="tpl-cta__sub">{ctaContent.subtitle}</p>
+          )}
+          {ctaContent.allocations && ctaContent.allocations.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, width: '100%', maxWidth: '600px', marginTop: 28 }}>
+              {ctaContent.allocations.map((a, i) => (
+                <div key={i} style={{ padding: 18, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 'clamp(22px, 2.8cqw, 28px)', fontWeight: 900, color: a.color || '#E11F7B' }}>{a.pct}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{a.title}</div>
+                  {a.desc && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{a.desc}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+          {(ctaContent.cta || ctaContent.buttonText) && (
+            <button className="tpl-cta__btn">
+              {ctaContent.cta || ctaContent.buttonText || 'Commencer'}
+            </button>
+          )}
+        </div>
+      )
+    }
+
+    case 'chart': {
+      const chartData = content.data && content.data.length > 0 ? content.data : []
+      const chartType = content.chartType || 'bar'
+      return (
+        <div
+          style={{
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            height: '100%', padding: '6% 8%',
+            background: 'var(--surface)',
+          }}
+        >
+          {content.title && (
+            <h2 style={{
+              fontSize: 'clamp(20px, 2.8cqw, 36px)', fontWeight: 700,
+              color: 'var(--text-pri)', marginBottom: 32, textAlign: 'center',
+            }}>
+              {content.title}
+            </h2>
+          )}
+          {chartData.length > 0 && (() => {
+            switch (chartType) {
+              case 'line':   return <LineChart data={chartData} thumbnail={thumbnail} />
+              case 'pie':    return <PieChart data={chartData} />
+              case 'donut':  return <DonutChart data={chartData} />
+              default:       return <BarChart data={chartData} thumbnail={thumbnail} />
+            }
+          })()}
+        </div>
+      )
+    }
+
+    case 'timeline': {
+      const accentColor = themeJSON?.accentColor || '#E11F7B'
+      const bgColor2 = themeJSON?.bgColor || '#06040A'
+      const textColor = themeJSON?.textColor || '#F0EDF5'
+      const events = content.events || []
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: thumbnail ? '12px 20px' : '48px 80px', boxSizing: 'border-box' }}>
+          <div style={{ fontSize: thumbnail ? 10 : 'clamp(28px, 3cqw, 42px)', fontWeight: 800, marginBottom: thumbnail ? 8 : 48, color: textColor }}>
+            {content.title || 'Timeline'}
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', position: 'relative', minHeight: 0 }}>
+            {/* Vertical line */}
+            <div style={{
+              position: 'absolute', left: '50%', top: 0, bottom: 0, width: thumbnail ? 1 : 2,
+              background: `linear-gradient(180deg, ${accentColor}, transparent)`,
+              transform: 'translateX(-50%)',
+              pointerEvents: 'none',
+            }} />
+            {events.map((event, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: thumbnail ? 6 : 24 }}>
+                {/* Left side (even) */}
+                <div style={{ flex: 1, textAlign: 'right', opacity: i % 2 === 0 ? 1 : 0 }}>
+                  <div style={{ fontSize: thumbnail ? 5 : 13, fontWeight: 700, color: accentColor }}>{event.year}</div>
+                  <div style={{ fontSize: thumbnail ? 6 : 15, fontWeight: 600, color: textColor }}>{event.label}</div>
+                  {event.desc && !thumbnail && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>{event.desc}</div>}
+                </div>
+                {/* Center dot */}
+                <div style={{
+                  width: thumbnail ? 6 : 14, height: thumbnail ? 6 : 14, borderRadius: '50%',
+                  background: accentColor,
+                  border: `${thumbnail ? 1 : 3}px solid ${bgColor2}`,
+                  boxShadow: thumbnail ? 'none' : `0 0 20px ${accentColor}66`,
+                  flexShrink: 0, zIndex: 1,
+                }} />
+                {/* Right side (odd) */}
+                <div style={{ flex: 1, opacity: i % 2 === 1 ? 1 : 0 }}>
+                  <div style={{ fontSize: thumbnail ? 5 : 13, fontWeight: 700, color: accentColor }}>{event.year}</div>
+                  <div style={{ fontSize: thumbnail ? 6 : 15, fontWeight: 600, color: textColor }}>{event.label}</div>
+                  {event.desc && !thumbnail && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>{event.desc}</div>}
+                </div>
+              </div>
+            ))}
+            {events.length === 0 && (
+              <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: thumbnail ? 8 : 14 }}>
+                Aucun événement
+              </div>
+            )}
+          </div>
+        </div>
+      )
+    }
+
+    case 'comparison': {
+      const accentColor = themeJSON?.accentColor || '#E11F7B'
+      const textColor = themeJSON?.textColor || '#F0EDF5'
+      const left = content.left || { label: 'Colonne A', items: [] }
+      const right = content.right || { label: 'Colonne B', items: [] }
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: thumbnail ? '10px 14px' : '48px 80px', gap: thumbnail ? 8 : 32, boxSizing: 'border-box' }}>
+          <div style={{ fontSize: thumbnail ? 9 : 'clamp(28px, 3cqw, 48px)', fontWeight: 800, textAlign: 'center', color: textColor }}>
+            {content.title || 'Comparaison'}
+          </div>
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: thumbnail ? 6 : 24, minHeight: 0 }}>
+            {[left, right].map((col, i) => {
+              const isRight = i === 1
+              const colAccent = isRight ? accentColor : 'rgba(255,255,255,0.3)'
+              return (
+                <div key={i} style={{
+                  borderRadius: thumbnail ? 4 : 16,
+                  border: `1px solid ${colAccent}33`,
+                  background: isRight ? `${accentColor}0A` : 'rgba(255,255,255,0.03)',
+                  overflow: 'hidden',
+                  boxShadow: isRight && !thumbnail ? `0 0 32px ${accentColor}22` : 'none',
+                  display: 'flex', flexDirection: 'column',
+                }}>
+                  {/* Header */}
+                  <div style={{
+                    padding: thumbnail ? '4px 6px' : '16px 24px',
+                    background: isRight
+                      ? `linear-gradient(135deg, ${accentColor}22, ${accentColor}11)`
+                      : 'rgba(255,255,255,0.05)',
+                    borderBottom: `1px solid ${colAccent}33`,
+                    fontSize: thumbnail ? 6 : 18, fontWeight: 800,
+                    color: isRight ? accentColor : 'rgba(255,255,255,0.6)',
+                    textAlign: 'center',
+                  }}>
+                    {col.label}
+                  </div>
+                  {/* Items */}
+                  <div style={{ padding: thumbnail ? '4px 6px' : '20px 24px', display: 'flex', flexDirection: 'column', gap: thumbnail ? 3 : 12 }}>
+                    {(col.items || []).map((item, j) => (
+                      <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: thumbnail ? 3 : 10 }}>
+                        <span style={{ color: isRight ? accentColor : 'rgba(255,255,255,0.3)', fontSize: thumbnail ? 6 : 16, flexShrink: 0, marginTop: 1 }}>
+                          {isRight ? '✓' : '×'}
+                        </span>
+                        <span style={{ fontSize: thumbnail ? 5 : 14, color: isRight ? textColor : 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                          {item}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )
+    }
+
+    case 'features': {
+      const featureItems = (content as {features?: Array<{icon?: string; title?: string; desc?: string}>; items?: Array<{icon?: string; title?: string; desc?: string}>}).features
+        || (content as {items?: Array<{icon?: string; title?: string; desc?: string}>}).items || []
+      return (
+        <div className="tpl-features">
+          {(content as {eyebrow?: string}).eyebrow && <Eyebrow text={(content as {eyebrow: string}).eyebrow} />}
+          {content.title && (
+            <h2 className="tpl-features__title" style={gradientText ? gradientTextStyle : {}}>
+              {content.title}
+            </h2>
+          )}
+          {(content as {subtitle?: string}).subtitle && <p style={{ fontSize: 'clamp(12px,1.4cqw,15px)', color: 'var(--text-sec)', marginBottom: 8, textAlign: 'center' }}>{(content as {subtitle: string}).subtitle}</p>}
+          <div className="features-grid" data-cols={featureItems.length === 2 ? '2' : featureItems.length >= 4 ? '4' : '3'}>
+            {featureItems.map((f, i) => (
+              <div key={i} className="feature-card">
+                {f.icon && <div className="feature-card__icon">{f.icon}</div>}
+                {f.title && <div className="feature-card__title">{f.title}</div>}
+                {f.desc && <div className="feature-card__desc">{f.desc}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    case 'pricing': {
+      const pricingContent = content as {
+        eyebrow?: string; title?: string; subtitle?: string;
+        tiers?: Array<{name?: string; price?: string; per?: string; desc?: string; features?: string[]; featured?: boolean}>
+      }
+      const tiers = pricingContent.tiers || []
+      return (
+        <div className="tpl-pricing">
+          {pricingContent.eyebrow && <Eyebrow text={pricingContent.eyebrow} />}
+          {pricingContent.title && <h2 className="tpl-pricing__title" style={gradientText ? gradientTextStyle : {}}>{pricingContent.title}</h2>}
+          {pricingContent.subtitle && <p style={{ fontSize: 'clamp(12px,1.4cqw,14px)', color: 'var(--text-sec)', textAlign: 'center' }}>{pricingContent.subtitle}</p>}
+          <div className="pricing-grid">
+            {tiers.map((t, i) => (
+              <div key={i} className={`pricing-card-wrap${t.featured ? ' featured' : ''}`}>
+                <div className="pricing-tier">{t.name}</div>
+                <div><span className="pricing-price-val">{t.price}</span>{t.per && <span className="pricing-price-per">{t.per}</span>}</div>
+                {t.desc && <div className="pricing-desc-text">{t.desc}</div>}
+                <ul className="pricing-features-list">{(t.features || []).map((f, j) => <li key={j}>{f}</li>)}</ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    case 'team': {
+      const teamContent = content as {
+        eyebrow?: string; title?: string; footnote?: string;
+        members?: Array<{initial?: string; name?: string; role?: string; bio?: string; color?: string; open?: boolean}>
+      }
+      const members = teamContent.members || []
+      return (
+        <div className="tpl-team">
+          {teamContent.eyebrow && <Eyebrow text={teamContent.eyebrow} />}
+          {teamContent.title && <h2 className="tpl-team__title" style={gradientText ? gradientTextStyle : {}}>{teamContent.title}</h2>}
+          <div className="team-grid">
+            {members.map((m, i) => (
+              <div key={i} className="team-card" data-open={m.open ? 'true' : 'false'}>
+                <div className="team-avatar-circle" style={{ color: m.color || '#E11F7B', borderColor: m.color || '#E11F7B', background: `${m.color || '#E11F7B'}18` }}>
+                  {m.initial}
+                </div>
+                <div className="team-name">{m.name}</div>
+                <div className="team-role">{m.role}</div>
+                {m.bio && <div className="team-bio">{m.bio}</div>}
+              </div>
+            ))}
+          </div>
+          {teamContent.footnote && <p className="team-footnote">{teamContent.footnote}</p>}
+        </div>
+      )
+    }
+
+    case 'roadmap': {
+      const roadmapContent = content as {
+        eyebrow?: string; title?: string;
+        phases?: Array<{icon?: string; quarter?: string; title?: string; items?: string[]; color?: string; current?: boolean}>
+      }
+      const phases = roadmapContent.phases || []
+      return (
+        <div className="tpl-roadmap">
+          {roadmapContent.eyebrow && <Eyebrow text={roadmapContent.eyebrow} />}
+          {roadmapContent.title && <h2 className="tpl-roadmap__title" style={gradientText ? gradientTextStyle : {}}>{roadmapContent.title}</h2>}
+          <div className="roadmap-grid">
+            {phases.map((p, i) => (
+              <div key={i} className="roadmap-phase">
+                <div className="roadmap-dot" data-current={p.current ? 'true' : 'false'} style={{ color: p.color || '#E11F7B', borderColor: p.color || '#E11F7B' }}>
+                  {p.icon}
+                </div>
+                <div className="roadmap-content">
+                  {p.quarter && <div className="roadmap-quarter">{p.quarter}</div>}
+                  {p.title && <div className="roadmap-phase-title">{p.title}</div>}
+                  {p.items && p.items.length > 0 && (
+                    <div className="roadmap-items">{p.items.map((item, j) => <div key={j}>· {item}</div>)}</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    case 'market': {
+      const marketContent = content as {
+        eyebrow?: string; title?: string; footnote?: string;
+        bars?: Array<{label?: string; desc?: string; value?: string; width?: number; color?: string}>
+      }
+      const bars = marketContent.bars || []
+      return (
+        <div className="tpl-market">
+          {marketContent.eyebrow && <Eyebrow text={marketContent.eyebrow} />}
+          {marketContent.title && <h2 className="tpl-market__title" style={gradientText ? gradientTextStyle : {}}>{marketContent.title}</h2>}
+          <div className="market-bars">
+            {bars.map((b, i) => (
+              <div key={i} className="market-bar-row">
+                <div className="market-bar-label">{b.label}</div>
+                <div className="market-bar-track">
+                  <div className="market-bar-fill" style={{ width: `${b.width || 50}%`, background: b.color || '#E11F7B' }}>
+                    {b.desc}
+                  </div>
+                </div>
+                <div className="market-bar-value" style={{ color: b.color || '#E11F7B' }}>{b.value}</div>
+              </div>
+            ))}
+          </div>
+          {marketContent.footnote && <p className="market-footnote">{marketContent.footnote}</p>}
+        </div>
+      )
+    }
+
+    case 'orbit': {
+      const orbitContent = content as {
+        eyebrow?: string; title?: string;
+        center?: {icon?: string};
+        nodes?: Array<{initial?: string; label?: string; color?: string; bgColor?: string; position?: string}>;
+        steps?: Array<{num?: number; title?: string; desc?: string}>
+      }
+      const nodes = orbitContent.nodes || []
+      const steps = orbitContent.steps || []
+      // Position offsets for orbit nodes
+      const positionOffset: Record<string, {top?: string; bottom?: string; left?: string; right?: string; transform?: string}> = {
+        'top':          { top: '0%',   left: '50%', transform: 'translateX(-50%)' },
+        'bottom':       { bottom: '0%', left: '50%', transform: 'translateX(-50%)' },
+        'top-right':    { top: '15%',  right: '5%' },
+        'bottom-right': { bottom: '15%', right: '5%' },
+        'top-left':     { top: '15%',  left: '5%' },
+        'bottom-left':  { bottom: '15%', left: '5%' },
+        'right':        { top: '50%',  right: '0%', transform: 'translateY(-50%)' },
+        'left':         { top: '50%',  left: '0%',  transform: 'translateY(-50%)' },
+      }
+      return (
+        <div className="tpl-orbit">
+          {/* Left: visual */}
+          <div>
+            {orbitContent.eyebrow && <Eyebrow text={orbitContent.eyebrow} />}
+            {orbitContent.title && <h2 style={{ fontSize: 'clamp(24px, 3cqw, 40px)', fontWeight: 800, letterSpacing: '-1px', marginBottom: 32, ...(gradientText ? gradientTextStyle : {color:'var(--text-pri)'}) }}>{orbitContent.title}</h2>}
+            <div className="orbit-visual">
+              {/* Rings */}
+              <div className="orbit-ring-el" style={{ width: 240, height: 240 }} />
+              <div className="orbit-ring-el" style={{ width: 160, height: 160 }} />
+              {/* Center */}
+              <div className="orbit-center-el">{orbitContent.center?.icon || '⬡'}</div>
+              {/* Nodes */}
+              {nodes.map((n, i) => (
+                <div key={i} className="orbit-node-el" style={positionOffset[n.position || 'top'] || { top: `${20 + i * 20}%`, left: `${10 + i * 15}%` }}>
+                  <div className="orbit-bubble-el" style={{ color: n.color || '#E11F7B', borderColor: n.color || '#E11F7B', background: n.bgColor || 'rgba(225,31,123,0.12)' }}>
+                    {n.initial}
+                  </div>
+                  <div className="orbit-label-el">{n.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Right: steps */}
+          <div>
+            <div className="steps-list-el">
+              {steps.map((s, i) => (
+                <div key={i} className="step-el">
+                  <div className="step-num-el">{s.num || i + 1}</div>
+                  <div>
+                    {s.title && <div className="step-title-el">{s.title}</div>}
+                    {s.desc && <div className="step-desc-el">{s.desc}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    case 'mockup': {
+      const mockupContent = content as {
+        eyebrow?: string; title?: string; appName?: string;
+        cards?: Array<{status?: string; statusColor?: string; title?: string; progress?: number}>;
+        agents?: Array<{name?: string; color?: string; blink?: boolean}>;
+        agentCount?: string;
+      }
+      const cards = mockupContent.cards || []
+      const agents = mockupContent.agents || []
+      return (
+        <div className="tpl-mockup">
+          {mockupContent.eyebrow && <Eyebrow text={mockupContent.eyebrow} style={{ justifyContent: 'center' }} />}
+          {mockupContent.title && <h2 className="tpl-mockup__title" style={gradientText ? gradientTextStyle : {}}>{mockupContent.title}</h2>}
+          <div className="app-mockup">
+            <div className="mockup-titlebar">
+              <div className="mockup-mac-dot" style={{ background: '#FF5F57' }} />
+              <div className="mockup-mac-dot" style={{ background: '#FFBD2E' }} />
+              <div className="mockup-mac-dot" style={{ background: '#28C840' }} />
+              <span className="mockup-app-title">{mockupContent.appName || 'Orion Launchpad'}</span>
+            </div>
+            <div className="mockup-cards-grid">
+              {cards.map((c, i) => (
+                <div key={i} className="mockup-task-card">
+                  <div className="mockup-status-tag" style={{ background: `${c.statusColor || '#E11F7B'}22`, color: c.statusColor || '#E11F7B' }}>{c.status}</div>
+                  <div className="mockup-task-name">{c.title}</div>
+                  <div className="mockup-progress-bar">
+                    <div className="mockup-progress-fill" style={{ width: `${c.progress || 0}%`, background: c.statusColor || '#E11F7B' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mockup-agents-row">
+              {agents.map((a, i) => (
+                <div key={i} className="mockup-agent-pill">
+                  <div className="mockup-agent-status-dot" style={{ background: a.color || '#E11F7B', animation: a.blink ? 'blink 2s ease-in-out infinite' : 'none' }} />
+                  <span className="mockup-agent-name-text">{a.name}</span>
+                </div>
+              ))}
+              {mockupContent.agentCount && <span style={{ fontSize: 9, color: 'var(--text-sec)', marginLeft: 'auto' }}>{mockupContent.agentCount}</span>}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    default:
+      return (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          height: '100%', color: 'var(--text-sec)',
+        }}>
+          Slide type inconnu: {type}
+        </div>
+      )
+  }
+}
+
+// ── Chart color palette ────────────────────────────────────────────────────────
+
+// Hex colors for SVG fill (CSS vars don't work in SVG fill attributes)
+const CHART_HEX = [
+  '#E11F7B',
+  '#c95ea0',
+  '#9e4c7e',
+  '#7a3a60',
+  '#b450b4',
+]
+
+// ── BarChart ──────────────────────────────────────────────────────────────────
+
+function BarChart({
+  data,
+  thumbnail,
+}: {
+  data: { label: string; value: number }[]
+  thumbnail?: boolean
+}) {
+  const max = Math.max(...data.map(d => d.value), 1)
+  const W = 600
+  const H = 300
+  const PAD_LEFT = 40
+  const PAD_RIGHT = 20
+  const PAD_TOP = 36
+  const PAD_BOTTOM = 52
+  const chartW = W - PAD_LEFT - PAD_RIGHT
+  const chartH = H - PAD_TOP - PAD_BOTTOM
+  const n = data.length
+  const barW = Math.min(60, (chartW / n) * 0.55)
+  const gap = chartW / n
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ width: '100%', maxWidth: 600, height: 'auto', overflow: 'visible' }}
+      role="img"
+      aria-label="Bar chart"
+    >
+      <defs>
+        <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#E11F7B" stopOpacity="1" />
+          <stop offset="100%" stopColor="#E11F7B" stopOpacity="0.35" />
+        </linearGradient>
+        {/* Grid lines */}
+      </defs>
+
+      {/* Horizontal grid lines */}
+      {[0, 0.25, 0.5, 0.75, 1].map((frac, i) => {
+        const y = PAD_TOP + chartH * (1 - frac)
+        return (
+          <g key={i}>
+            <line
+              x1={PAD_LEFT} y1={y} x2={W - PAD_RIGHT} y2={y}
+              stroke="rgba(255,255,255,0.06)" strokeWidth="1"
+            />
+            {frac > 0 && (
+              <text
+                x={PAD_LEFT - 6} y={y + 4}
+                textAnchor="end"
+                fontSize="9"
+                fill="rgba(255,255,255,0.25)"
+                fontFamily="Poppins, sans-serif"
+              >
+                {Math.round(max * frac)}
+              </text>
+            )}
+          </g>
+        )
+      })}
+
+      {/* Bars */}
+      {data.map((item, i) => {
+        const barH = Math.max(4, (item.value / max) * chartH)
+        const x = PAD_LEFT + gap * i + gap / 2 - barW / 2
+        const y = PAD_TOP + chartH - barH
+        return (
+          <g key={i}>
+            <rect
+              x={x} y={y}
+              width={barW} height={barH}
+              rx={4} ry={4}
+              fill="url(#barGrad)"
+              style={thumbnail ? undefined : {
+                transition: 'height 0.6s cubic-bezier(0.22,1,0.36,1)',
+              }}
+            />
+            {/* Value label above bar */}
+            <text
+              x={x + barW / 2} y={y - 6}
+              textAnchor="middle"
+              fontSize="10"
+              fontWeight="600"
+              fill="#E11F7B"
+              fontFamily="Poppins, sans-serif"
+            >
+              {item.value}
+            </text>
+            {/* X-axis label */}
+            <text
+              x={x + barW / 2} y={PAD_TOP + chartH + 18}
+              textAnchor="middle"
+              fontSize="10"
+              fill="rgba(255,255,255,0.45)"
+              fontFamily="Poppins, sans-serif"
+            >
+              {item.label.length > 10 ? item.label.slice(0, 10) + '…' : item.label}
+            </text>
+          </g>
+        )
+      })}
+
+      {/* X baseline */}
+      <line
+        x1={PAD_LEFT} y1={PAD_TOP + chartH}
+        x2={W - PAD_RIGHT} y2={PAD_TOP + chartH}
+        stroke="rgba(255,255,255,0.12)" strokeWidth="1"
+      />
+    </svg>
+  )
+}
+
+// ── LineChart ─────────────────────────────────────────────────────────────────
+
+function LineChart({
+  data,
+  thumbnail,
+}: {
+  data: { label: string; value: number }[]
+  thumbnail?: boolean
+}) {
+  const max = Math.max(...data.map(d => d.value), 1)
+  const W = 600
+  const H = 300
+  const PAD_LEFT = 40
+  const PAD_RIGHT = 20
+  const PAD_TOP = 36
+  const PAD_BOTTOM = 52
+  const chartW = W - PAD_LEFT - PAD_RIGHT
+  const chartH = H - PAD_TOP - PAD_BOTTOM
+  const n = data.length
+
+  const pts = data.map((d, i) => ({
+    x: PAD_LEFT + (i / Math.max(n - 1, 1)) * chartW,
+    y: PAD_TOP + chartH - (d.value / max) * chartH,
+  }))
+
+  const polylinePoints = pts.map(p => `${p.x},${p.y}`).join(' ')
+  const areaPath = pts.length > 0
+    ? `M ${pts[0].x},${PAD_TOP + chartH} ` +
+      pts.map(p => `L ${p.x},${p.y}`).join(' ') +
+      ` L ${pts[pts.length - 1].x},${PAD_TOP + chartH} Z`
+    : ''
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ width: '100%', maxWidth: 600, height: 'auto', overflow: 'visible' }}
+      role="img"
+      aria-label="Line chart"
+    >
+      <defs>
+        <linearGradient id="lineAreaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#E11F7B" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#E11F7B" stopOpacity="0.03" />
+        </linearGradient>
+      </defs>
+
+      {/* Grid lines */}
+      {[0, 0.25, 0.5, 0.75, 1].map((frac, i) => {
+        const y = PAD_TOP + chartH * (1 - frac)
+        return (
+          <g key={i}>
+            <line
+              x1={PAD_LEFT} y1={y} x2={W - PAD_RIGHT} y2={y}
+              stroke="rgba(255,255,255,0.06)" strokeWidth="1"
+            />
+            {frac > 0 && (
+              <text
+                x={PAD_LEFT - 6} y={y + 4}
+                textAnchor="end" fontSize="9"
+                fill="rgba(255,255,255,0.25)"
+                fontFamily="Poppins, sans-serif"
+              >
+                {Math.round(max * frac)}
+              </text>
+            )}
+          </g>
+        )
+      })}
+
+      {/* Area fill */}
+      {areaPath && (
+        <path d={areaPath} fill="url(#lineAreaGrad)" />
+      )}
+
+      {/* Line */}
+      <polyline
+        points={polylinePoints}
+        fill="none"
+        stroke="#E11F7B"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        style={thumbnail ? undefined : { transition: 'opacity 0.4s' }}
+      />
+
+      {/* Points + labels */}
+      {pts.map((p, i) => (
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r={4} fill="#E11F7B" />
+          <circle cx={p.x} cy={p.y} r={7} fill="#E11F7B" fillOpacity="0.2" />
+          {/* Value */}
+          <text
+            x={p.x} y={p.y - 12}
+            textAnchor="middle" fontSize="10" fontWeight="600"
+            fill="#E11F7B" fontFamily="Poppins, sans-serif"
+          >
+            {data[i].value}
+          </text>
+          {/* X label */}
+          <text
+            x={p.x} y={PAD_TOP + chartH + 18}
+            textAnchor="middle" fontSize="10"
+            fill="rgba(255,255,255,0.45)"
+            fontFamily="Poppins, sans-serif"
+          >
+            {data[i].label.length > 10 ? data[i].label.slice(0, 10) + '…' : data[i].label}
+          </text>
+        </g>
+      ))}
+
+      {/* X baseline */}
+      <line
+        x1={PAD_LEFT} y1={PAD_TOP + chartH}
+        x2={W - PAD_RIGHT} y2={PAD_TOP + chartH}
+        stroke="rgba(255,255,255,0.12)" strokeWidth="1"
+      />
+    </svg>
+  )
+}
+
+// ── PieChart ──────────────────────────────────────────────────────────────────
+
+function PieChart({ data }: { data: { label: string; value: number }[] }) {
+  const total = data.reduce((s, d) => s + d.value, 0) || 1
+  const CX = 120
+  const CY = 140
+  const R = 100
+
+  let cumAngle = -Math.PI / 2
+
+  const slices = data.slice(0, 5).map((d, i) => {
+    const angle = (d.value / total) * 2 * Math.PI
+    const startAngle = cumAngle
+    cumAngle += angle
+    const endAngle = cumAngle
+    const x1 = CX + R * Math.cos(startAngle)
+    const y1 = CY + R * Math.sin(startAngle)
+    const x2 = CX + R * Math.cos(endAngle)
+    const y2 = CY + R * Math.sin(endAngle)
+    const largeArc = angle > Math.PI ? 1 : 0
+    const path = `M ${CX},${CY} L ${x1},${y1} A ${R},${R} 0 ${largeArc},1 ${x2},${y2} Z`
+    const midAngle = startAngle + angle / 2
+    const labelX = CX + (R * 0.6) * Math.cos(midAngle)
+    const labelY = CY + (R * 0.6) * Math.sin(midAngle)
+    const pct = Math.round((d.value / total) * 100)
+    return { path, color: CHART_HEX[i % CHART_HEX.length], labelX, labelY, pct, ...d }
+  })
+
+  return (
+    <svg
+      viewBox="0 0 300 280"
+      style={{ width: '100%', maxWidth: 300, height: 'auto' }}
+      role="img"
+      aria-label="Pie chart"
+    >
+      {slices.map((s, i) => (
+        <g key={i}>
+          <path d={s.path} fill={s.color} opacity="0.92" stroke="rgba(0,0,0,0.2)" strokeWidth="1" />
+          {s.pct >= 8 && (
+            <text
+              x={s.labelX} y={s.labelY + 4}
+              textAnchor="middle" fontSize="11" fontWeight="700"
+              fill="rgba(255,255,255,0.9)"
+              fontFamily="Poppins, sans-serif"
+            >
+              {s.pct}%
+            </text>
+          )}
+        </g>
+      ))}
+
+      {/* Legend */}
+      {slices.map((s, i) => (
+        <g key={i} transform={`translate(250, ${30 + i * 40})`}>
+          <rect x={0} y={0} width={12} height={12} rx={3} fill={s.color} />
+          <text x={17} y={10} fontSize="11" fill="rgba(255,255,255,0.6)" fontFamily="Poppins, sans-serif">
+            {s.label.length > 10 ? s.label.slice(0, 10) + '…' : s.label}
+          </text>
+          <text x={17} y={24} fontSize="10" fontWeight="600" fill="rgba(255,255,255,0.35)" fontFamily="Poppins, sans-serif">
+            {s.value}
+          </text>
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+// ── DonutChart ────────────────────────────────────────────────────────────────
+
+function DonutChart({ data }: { data: { label: string; value: number }[] }) {
+  const total = data.reduce((s, d) => s + d.value, 0) || 1
+  const CX = 130
+  const CY = 140
+  const R = 100
+  const INNER_R = 55
+
+  let cumAngle = -Math.PI / 2
+
+  const slices = data.slice(0, 5).map((d, i) => {
+    const angle = (d.value / total) * 2 * Math.PI
+    const startAngle = cumAngle
+    cumAngle += angle
+    const endAngle = cumAngle
+    const largeArc = angle > Math.PI ? 1 : 0
+    // Outer arc
+    const ox1 = CX + R * Math.cos(startAngle)
+    const oy1 = CY + R * Math.sin(startAngle)
+    const ox2 = CX + R * Math.cos(endAngle)
+    const oy2 = CY + R * Math.sin(endAngle)
+    // Inner arc
+    const ix1 = CX + INNER_R * Math.cos(endAngle)
+    const iy1 = CY + INNER_R * Math.sin(endAngle)
+    const ix2 = CX + INNER_R * Math.cos(startAngle)
+    const iy2 = CY + INNER_R * Math.sin(startAngle)
+    const path = [
+      `M ${ox1},${oy1}`,
+      `A ${R},${R} 0 ${largeArc},1 ${ox2},${oy2}`,
+      `L ${ix1},${iy1}`,
+      `A ${INNER_R},${INNER_R} 0 ${largeArc},0 ${ix2},${iy2}`,
+      'Z',
+    ].join(' ')
+    const pct = Math.round((d.value / total) * 100)
+    return { path, color: CHART_HEX[i % CHART_HEX.length], pct, ...d }
+  })
+
+  return (
+    <svg
+      viewBox="0 0 320 280"
+      style={{ width: '100%', maxWidth: 320, height: 'auto' }}
+      role="img"
+      aria-label="Donut chart"
+    >
+      {slices.map((s, i) => (
+        <path
+          key={i}
+          d={s.path}
+          fill={s.color}
+          opacity="0.92"
+          stroke="rgba(0,0,0,0.2)"
+          strokeWidth="1"
+        />
+      ))}
+
+      {/* Centre label */}
+      <text
+        x={CX} y={CY - 8}
+        textAnchor="middle" fontSize="22" fontWeight="700"
+        fill="rgba(255,255,255,0.9)"
+        fontFamily="Poppins, sans-serif"
+      >
+        {total}
+      </text>
+      <text
+        x={CX} y={CY + 14}
+        textAnchor="middle" fontSize="10"
+        fill="rgba(255,255,255,0.4)"
+        fontFamily="Poppins, sans-serif"
+      >
+        total
+      </text>
+
+      {/* Legend */}
+      {slices.map((s, i) => (
+        <g key={i} transform={`translate(255, ${30 + i * 42})`}>
+          <rect x={0} y={0} width={12} height={12} rx={3} fill={s.color} />
+          <text x={17} y={10} fontSize="11" fill="rgba(255,255,255,0.6)" fontFamily="Poppins, sans-serif">
+            {s.label.length > 9 ? s.label.slice(0, 9) + '…' : s.label}
+          </text>
+          <text x={17} y={24} fontSize="10" fontWeight="600" fill="rgba(255,255,255,0.35)" fontFamily="Poppins, sans-serif">
+            {s.value} · {s.pct}%
+          </text>
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+export default SlideRenderer
