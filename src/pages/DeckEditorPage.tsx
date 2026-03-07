@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { SlideRenderer } from '../components/deck/SlideRenderer'
+import { AnimatedBackground } from '../components/deck/AnimatedBackground'
 import { regenerateSlide } from '../lib/deckGenerator'
 import { publishDeck, generateHTMLForExport } from '../lib/deckPublisher'
 import type { SlideJSON, DeckTheme, SlideContent, DeckThemeJSON, SlideTransition, FontSize, SlideBackground } from '../types/deck'
@@ -827,7 +828,6 @@ export function DeckEditorPage() {
   const [mobileTab, setMobileTab] = useState<'slides' | 'canvas' | 'props'>('canvas')
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // ── Inline edit state ──────────────────────────────────────────────────────
-  const [canvasEditMode, setCanvasEditMode] = useState(false)
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
 
   const theme = getTheme(deck)
@@ -850,17 +850,16 @@ export function DeckEditorPage() {
     if (id) fetchDeck(id)
   }, [id])
 
-  // Escape → quitte le mode édition canvas
+  // Escape → déselectionne le champ en édition
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && canvasEditMode) {
-        setCanvasEditMode(false)
+      if (e.key === 'Escape') {
         setSelectedFieldId(null)
       }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [canvasEditMode])
+  }, [])
 
   async function fetchDeck(deckId: string) {
     setLoading(true)
@@ -1357,31 +1356,23 @@ export function DeckEditorPage() {
       <div className={`deck-canvas-zone${mobileTab !== 'canvas' ? ' mobile-canvas-hidden' : ''}`}>
         {activeSlide ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%', height: '100%' }}>
-            {/* Inline edit toolbar */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 0 }}>
-              <button
-                onClick={() => { setCanvasEditMode(v => !v); setSelectedFieldId(null) }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '5px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600,
-                  border: canvasEditMode ? '1px solid rgba(225,31,123,0.5)' : '1px solid rgba(255,255,255,0.1)',
-                  background: canvasEditMode ? 'rgba(225,31,123,0.12)' : 'rgba(255,255,255,0.04)',
-                  color: canvasEditMode ? '#E11F7B' : 'rgba(255,255,255,0.4)',
-                  cursor: 'pointer', fontFamily: 'Poppins, sans-serif', transition: 'all 0.15s',
-                }}
-              >
-                ✏️ {canvasEditMode ? 'Mode édition actif' : 'Éditer'}
-              </button>
-              {canvasEditMode && (
-                <span style={{ fontSize: 11, color: 'rgba(225,31,123,0.6)' }}>
-                  Double-clic sur un champ pour éditer • Escape pour quitter
-                </span>
-              )}
+            {/* Inline edit hint */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', marginBottom: 0 }}>
+              <span style={{ fontSize: 11, color: 'rgba(225,31,123,0.55)' }}>
+                ✏️ Cliquez sur un champ pour éditer • Escape pour désélectionner
+              </span>
             </div>
             <div
               className="deck-slide-canvas"
-              onDoubleClick={() => setCanvasEditMode(true)}
+              style={{ position: 'relative', overflow: 'hidden' }}
             >
+              {/* Animated background dans l'éditeur */}
+              {(() => {
+                const bgType: BgType = (themeJSON?.bgAnimation as BgType) ?? 'none'
+                return bgType !== 'none' ? (
+                  <AnimatedBackground type={bgType} accentColor={themeJSON?.accentColor} style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }} />
+                ) : null
+              })()}
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeSlide.id}
@@ -1389,13 +1380,13 @@ export function DeckEditorPage() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  style={{ width: '100%', height: '100%' }}
+                  style={{ width: '100%', height: '100%', position: 'relative', zIndex: 1 }}
                 >
                   <SlideRenderer
                     slide={activeSlide}
                     theme={theme}
                     themeJSON={themeJSON}
-                    editMode={canvasEditMode}
+                    editMode={true}
                     selectedFieldId={selectedFieldId}
                     onFieldSelect={handleFieldSelect}
                     onFieldSave={handleFieldSave}

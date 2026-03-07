@@ -10,10 +10,10 @@
  * - TK-0047: Import depuis Notion (mode démo si pas de clé API)
  * - TK-0051: Répertoire partagé (localStorage + bouton Partager)
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
-import { Plus, Presentation, FileText, Globe, ChevronLeft, X, Loader2, BarChart2 } from 'lucide-react'
+import { Plus, Presentation, FileText, Globe, ChevronLeft, X, Loader2, BarChart2, MoreVertical, Trash2, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { fetchNotionPages, notionPageToBrief, isDemo, type NotionPage } from '../lib/notionImporter'
 import { generateDeck } from '../lib/deckGenerator'
@@ -41,12 +41,21 @@ function DeckCard({
   onClick,
   onShare,
   onAnalytics,
+  onDelete,
+  onUnpublish,
+  menuOpen,
+  onMenuToggle,
 }: {
   deck: Deck
   onClick?: () => void
   onShare?: (deck: Deck) => void
   onAnalytics?: (deck: Deck) => void
+  onDelete?: (deck: Deck) => void
+  onUnpublish?: (deck: Deck) => void
+  menuOpen?: boolean
+  onMenuToggle?: (id: string | null) => void
 }) {
+  const menuRef = useRef<HTMLDivElement>(null)
   const statusColors: Record<string, string> = {
     draft: '#9CA3AF',
     published: '#10B981',
@@ -198,6 +207,77 @@ function DeckCard({
               <BarChart2 size={10} />
               Stats
             </button>
+          )}
+          {/* ── Menu 3-points ────────────────────────────────── */}
+          {(onDelete || onUnpublish) && (
+            <div ref={menuRef} style={{ position: 'relative' }}>
+              <button
+                onClick={e => { e.stopPropagation(); onMenuToggle?.(menuOpen ? null : deck.id) }}
+                title="Options"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 24, height: 24, borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)',
+                  background: menuOpen ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+                  color: 'rgba(255,255,255,0.5)', cursor: 'pointer', transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(225,31,123,0.4)'; e.currentTarget.style.color = '#E11F7B' }}
+                onMouseLeave={e => { if (!menuOpen) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)' } }}
+              >
+                <MoreVertical size={12} />
+              </button>
+              <AnimatePresence>
+                {menuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                    transition={{ duration: 0.12 }}
+                    style={{
+                      position: 'absolute', bottom: '100%', right: 0, marginBottom: 6,
+                      background: '#1A1520', border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: 10, padding: '6px', minWidth: 160, zIndex: 50,
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {deck.status === 'published' && onUnpublish && (
+                      <button
+                        onClick={() => { onMenuToggle?.(null); onUnpublish(deck) }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          width: '100%', padding: '8px 10px', borderRadius: 7, border: 'none',
+                          background: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer',
+                          fontSize: 12, fontWeight: 500, fontFamily: 'Poppins, sans-serif',
+                          transition: 'all 0.1s', textAlign: 'left',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#fff' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
+                      >
+                        <EyeOff size={13} />
+                        Dépublier
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        onClick={() => { onMenuToggle?.(null); onDelete(deck) }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          width: '100%', padding: '8px 10px', borderRadius: 7, border: 'none',
+                          background: 'none', color: '#EF4444', cursor: 'pointer',
+                          fontSize: 12, fontWeight: 500, fontFamily: 'Poppins, sans-serif',
+                          transition: 'all 0.1s', textAlign: 'left',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                      >
+                        <Trash2 size={13} />
+                        Supprimer
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           )}
         </div>
       </div>
@@ -652,6 +732,17 @@ export function DecksPage() {
   // TK-0051 — Share modal
   const [shareModalDeck, setShareModalDeck] = useState<Deck | null>(null)
 
+  // DB-07 — Context menu + delete/unpublish
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpenId) return
+    function onOutsideClick() { setMenuOpenId(null) }
+    document.addEventListener('click', onOutsideClick)
+    return () => document.removeEventListener('click', onOutsideClick)
+  }, [menuOpenId])
+
   useEffect(() => {
     fetchDecks()
   }, [])
@@ -679,6 +770,18 @@ export function DecksPage() {
     setShowNotionModal(false)
     navigate(`/decks/${deckId}/edit`)
   }, [navigate])
+
+  async function handleUnpublish(deck: Deck) {
+    await supabase.from('presentations').update({ status: 'draft', published_url: null }).eq('id', deck.id)
+    setDecks(prev => prev.map(d => d.id === deck.id ? { ...d, status: 'draft', published_url: null } : d))
+  }
+
+  async function handleDelete(deck: Deck) {
+    if (!window.confirm(`Supprimer "${deck.title}" ? Cette action est irréversible.`)) return
+    await supabase.from('slides').delete().eq('deck_id', deck.id)
+    await supabase.from('presentations').delete().eq('id', deck.id)
+    setDecks(prev => prev.filter(d => d.id !== deck.id))
+  }
 
   const filtered = decks.filter(d => {
     if (filter === 'shared') return d.status === 'published'
@@ -872,6 +975,10 @@ export function DecksPage() {
                   onClick={() => navigate(`/decks/${deck.id}/edit`)}
                   onShare={setShareModalDeck}
                   onAnalytics={(d) => navigate(`/decks/${d.id}/analytics`)}
+                  onDelete={handleDelete}
+                  onUnpublish={handleUnpublish}
+                  menuOpen={menuOpenId === deck.id}
+                  onMenuToggle={setMenuOpenId}
                 />
               ))}
             </AnimatePresence>

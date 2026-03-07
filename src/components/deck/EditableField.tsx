@@ -1,10 +1,11 @@
 /**
  * EditableField.tsx — Composant d'édition inline pour le canvas
  * DB-01-A Phase 1 — Inline Edit Canvas
+ * DB-01-C — Clic simple (plus de double-clic)
  *
  * Wraps un élément quelconque (h1, p, div, etc.) avec support contentEditable.
  * En mode editMode=false, se comporte exactement comme l'élément natif.
- * En mode editMode=true, le double-clic active l'édition inline.
+ * En mode editMode=true, le clic simple active l'édition inline.
  */
 import React, { useRef, useEffect, useCallback } from 'react'
 
@@ -19,7 +20,10 @@ export interface EditableFieldProps {
   selected?: boolean
   editMode?: boolean
   placeholder?: string
+  /** @deprecated — appelé depuis onClick désormais (plus besoin de double-clic) */
   onDoubleClick?: () => void
+  /** Prop directe pour notifier le parent du champ sélectionné */
+  onFieldSelect?: (fieldId: string) => void
 }
 
 export function EditableField({
@@ -33,7 +37,8 @@ export function EditableField({
   selected,
   editMode,
   placeholder,
-  onDoubleClick: externalDoubleClick,
+  onDoubleClick: externalClick,
+  onFieldSelect,
 }: EditableFieldProps) {
   const ref = useRef<HTMLElement>(null)
   const savedRef = useRef(value)   // valeur au moment du focus (pour Escape)
@@ -47,11 +52,15 @@ export function EditableField({
     savedRef.current = value
   }, [value])
 
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
     if (!editMode) return
     e.stopPropagation()
     if (!ref.current) return
-    if (externalDoubleClick) externalDoubleClick()
+    // Sélectionner le champ (via onDoubleClick compat ou onFieldSelect direct)
+    if (externalClick) externalClick()
+    onFieldSelect?.(fieldId)
+    // Activer contentEditable seulement si pas déjà actif
+    if (ref.current.contentEditable === 'true') return
     ref.current.contentEditable = 'true'
     ref.current.focus()
     // Placer le curseur à la fin
@@ -61,7 +70,7 @@ export function EditableField({
     window.getSelection()?.removeAllRanges()
     window.getSelection()?.addRange(range)
     isEditing.current = true
-  }, [editMode, externalDoubleClick])
+  }, [editMode, fieldId, externalClick, onFieldSelect])
 
   const handleBlur = useCallback(() => {
     if (!ref.current) return
@@ -112,7 +121,7 @@ export function EditableField({
     ref,
     className,
     style: editableStyle,
-    onDoubleClick: handleDoubleClick,
+    onClick: handleClick,
     onBlur: handleBlur,
     onKeyDown: handleKeyDown,
     onPaste: handlePaste,
