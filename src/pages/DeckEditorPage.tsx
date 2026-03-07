@@ -981,6 +981,27 @@ export function DeckEditorPage() {
     updateSlideContent(content as SlideContent)
   }
 
+  // DB-12 — Réordonner un item de liste
+  function handleReorderItems(path: string, newArray: unknown[]) {
+    if (!activeSlide) return
+    const content = { ...(activeSlide.content as Record<string, unknown>) }
+    content[path] = newArray
+    updateSlideContent(content as SlideContent)
+  }
+
+  // DB-13 — Redimensionner le texte inline (delta = ±1 en rem steps de 0.1)
+  function handleUpdateFontSize(fieldPath: string, delta: number) {
+    if (!activeSlide) return
+    const content = { ...(activeSlide.content as Record<string, unknown>) }
+    const fontSizes = { ...((content._fontSizes as Record<string, number>) || {}) }
+    // Valeur courante : si non définie, on part de 1.0rem (base)
+    const current = fontSizes[fieldPath] ?? 1.0
+    const next = Math.max(0.5, Math.min(4.0, Math.round((current + delta * 0.1) * 10) / 10))
+    fontSizes[fieldPath] = next
+    content._fontSizes = fontSizes
+    updateSlideContent(content as SlideContent)
+  }
+
   function handleImageClick(fieldId: string) {
     const input = document.createElement('input')
     input.type = 'file'
@@ -1428,6 +1449,8 @@ export function DeckEditorPage() {
                     onImageClick={handleImageClick}
                     onRemoveItem={handleRemoveItem}
                     onAddItem={handleAddItem}
+                    onReorderItems={handleReorderItems}
+                    onUpdateFontSize={handleUpdateFontSize}
                   />
                 </motion.div>
               </AnimatePresence>

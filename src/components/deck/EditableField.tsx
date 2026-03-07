@@ -2,6 +2,7 @@
  * EditableField.tsx — Composant d'édition inline pour le canvas
  * DB-01-A Phase 1 — Inline Edit Canvas
  * DB-01-C — Clic simple (plus de double-clic)
+ * DB-13 — Boutons A−/A+ pour redimensionner le texte inline
  *
  * Wraps un élément quelconque (h1, p, div, etc.) avec support contentEditable.
  * En mode editMode=false, se comporte exactement comme l'élément natif.
@@ -24,6 +25,21 @@ export interface EditableFieldProps {
   onDoubleClick?: () => void
   /** Prop directe pour notifier le parent du champ sélectionné */
   onFieldSelect?: (fieldId: string) => void
+  // DB-13 — Redimensionner le texte inline
+  onUpdateFontSize?: (path: string, delta: number) => void
+}
+
+const microBtnStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.12)',
+  border: '1px solid rgba(255,255,255,0.2)',
+  color: '#fff',
+  borderRadius: 4,
+  padding: '1px 5px',
+  fontSize: 11,
+  fontWeight: 700,
+  cursor: 'pointer',
+  lineHeight: '16px',
+  fontFamily: 'Poppins, sans-serif',
 }
 
 export function EditableField({
@@ -39,6 +55,7 @@ export function EditableField({
   placeholder,
   onDoubleClick: externalClick,
   onFieldSelect,
+  onUpdateFontSize,
 }: EditableFieldProps) {
   const ref = useRef<HTMLElement>(null)
   const savedRef = useRef(value)   // valeur au moment du focus (pour Escape)
@@ -117,7 +134,7 @@ export function EditableField({
     ...(style || {}),
   } : (style || {})
 
-  return React.createElement(Tag as string, {
+  const el = React.createElement(Tag as string, {
     ref,
     className,
     style: editableStyle,
@@ -129,6 +146,39 @@ export function EditableField({
     suppressContentEditableWarning: true,
     children: value || placeholder || '',
   } as React.HTMLAttributes<HTMLElement> & { ref: React.Ref<HTMLElement> })
+
+  // DB-13 — Micro-toolbar A−/A+ quand sélectionné
+  if (selected && editMode && onUpdateFontSize) {
+    return (
+      <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%', width: style?.width === '100%' || style?.flex === '1' ? '100%' : undefined }}>
+        {/* Floating toolbar */}
+        <div
+          style={{
+            position: 'absolute', top: -28, left: 0,
+            display: 'flex', gap: 2,
+            background: 'rgba(0,0,0,0.85)', borderRadius: 4, padding: '2px 4px',
+            zIndex: 200,
+            pointerEvents: 'auto',
+          }}
+          onMouseDown={e => e.preventDefault()} // empêche blur de l'éditeur
+        >
+          <button
+            onClick={e => { e.stopPropagation(); onUpdateFontSize(fieldId, -1) }}
+            style={microBtnStyle}
+            title="Réduire la taille"
+          >A−</button>
+          <button
+            onClick={e => { e.stopPropagation(); onUpdateFontSize(fieldId, +1) }}
+            style={microBtnStyle}
+            title="Agrandir la taille"
+          >A+</button>
+        </div>
+        {el}
+      </div>
+    )
+  }
+
+  return el
 }
 
 export default EditableField
