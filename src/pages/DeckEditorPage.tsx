@@ -150,6 +150,15 @@ function parseThemeJSON(deck: DeckData | null): DeckThemeJSON {
 // ── DB-16 — SlideField supprimé : les champs texte sont désormais éditables inline sur le canvas ──
 // Le PropsPanel ne contient plus que des contrôles de styling (layout, fond, image, items structurels)
 
+// ── TK-0120 — Emoji picker : liste d'emojis courants pour les feature cards ──
+const FEATURE_EMOJIS = [
+  '✨','🔥','⚡','🚀','💡','🎯','🌟','💎','🔐','📊',
+  '🤖','🌍','🛡️','⚙️','🔗','🎨','📱','💬','🔔','📈',
+  '🎁','⏱️','🔄','🌈','🏆','💪','🔍','📌','🎉','💼',
+  '🌊','🎸','🧩','🧠','🔮','📡','🛠️','🎓','🌺','🦋',
+  '⭐','🌙','☀️','❄️','🌿','🦄','🐉','🔑','🪄','🎪',
+]
+
 // ── PropsPanel ────────────────────────────────────────────────────────────────
 
 function PropsPanel({
@@ -168,6 +177,8 @@ function PropsPanel({
   onChangeType?: (newType: SlideType) => void
 }) {
   const [regenerating, setRegenerating] = useState(false)
+  // TK-0120 — Index de la feature card dont le picker d'emoji est ouvert
+  const [emojiPickerIndex, setEmojiPickerIndex] = useState<number | null>(null)
   const content = slide.content
 
   const fieldStyle: React.CSSProperties = {
@@ -439,26 +450,77 @@ function PropsPanel({
         </>
       )}
 
-      {/* Features — gestion items */}
+      {/* Features — gestion items + TK-0120 emoji picker */}
       {(SlideType === 'features') && (
         <div style={{ marginBottom: 12 }}>
           <label style={fieldLabel}>Features ({((content as any).features || []).length})</label>
-          {((content as any).features || []).map((_: unknown, i: number) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Feature {i + 1}</span>
-              <button
-                onClick={() => {
-                  const features = ((content as any).features || []).filter((_: unknown, j: number) => j !== i)
-                  onUpdate({ ...content, features } as SlideContent)
-                }}
-                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
-              >×</button>
+          {((content as any).features || []).map((f: { icon?: string; title?: string; desc?: string }, i: number) => (
+            <div key={i} style={{ marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', gap: 6 }}>
+                {/* TK-0120 — Emoji picker button */}
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <button
+                    onClick={() => setEmojiPickerIndex(emojiPickerIndex === i ? null : i)}
+                    title="Changer l'emoji"
+                    style={{
+                      background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: 5, cursor: 'pointer', fontSize: 15, width: 28, height: 28,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    {f.icon || '✨'}
+                  </button>
+                  {emojiPickerIndex === i && (
+                    <div style={{
+                      position: 'absolute', top: 32, left: 0, zIndex: 200,
+                      background: '#2C272F', border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: 10, padding: 8,
+                      display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 2,
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                      minWidth: 176,
+                    }}>
+                      {FEATURE_EMOJIS.map(emoji => (
+                        <button
+                          key={emoji}
+                          onClick={() => {
+                            const features = [...((content as any).features || [])]
+                            features[i] = { ...features[i], icon: emoji }
+                            onUpdate({ ...content, features } as SlideContent)
+                            setEmojiPickerIndex(null)
+                          }}
+                          style={{
+                            background: f.icon === emoji ? 'rgba(225,31,123,0.25)' : 'transparent',
+                            border: 'none', borderRadius: 4, cursor: 'pointer',
+                            fontSize: 16, width: 26, height: 26,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                          }}
+                          title={emoji}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <span style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {f.title || `Feature ${i + 1}`}
+                </span>
+                <button
+                  onClick={() => {
+                    const features = ((content as any).features || []).filter((_: unknown, j: number) => j !== i)
+                    onUpdate({ ...content, features } as SlideContent)
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1, flexShrink: 0 }}
+                >×</button>
+              </div>
             </div>
           ))}
+          {/* TK-0121 — Label spécifique */}
           <button
             onClick={() => onUpdate({ ...content, features: [...((content as any).features || []), { icon: '✨', title: 'Nouvelle feature', desc: 'Description' }] } as SlideContent)}
             style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
-          >+ Ajouter</button>
+          >+ Add feature</button>
         </div>
       )}
 
@@ -478,10 +540,11 @@ function PropsPanel({
               >×</button>
             </div>
           ))}
+          {/* TK-0121 — Label spécifique pricing */}
           <button
             onClick={() => onUpdate({ ...content, tiers: [...((content as any).tiers || []), { name: 'Nouveau tier', price: '—', per: '/mois', desc: '', features: [], featured: false }] } as SlideContent)}
             style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
-          >+ Ajouter</button>
+          >+ Add plan</button>
         </div>
       )}
 
@@ -501,10 +564,11 @@ function PropsPanel({
               >×</button>
             </div>
           ))}
+          {/* TK-0121 — Label spécifique team */}
           <button
             onClick={() => onUpdate({ ...content, members: [...((content as any).members || []), { initial: 'N', name: 'Prénom Nom', role: 'Rôle', bio: '' }] } as SlideContent)}
             style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
-          >+ Ajouter</button>
+          >+ Add member</button>
         </div>
       )}
 
@@ -541,10 +605,11 @@ function PropsPanel({
               </div>
             )
           })}
+          {/* TK-0121 — Label spécifique roadmap */}
           <button
             onClick={() => onUpdate({ ...content, phases: [...((content as any).phases || []), { quarter: 'Q?', title: 'Nouvelle phase', items: [], status: 'planned', current: false }] } as SlideContent)}
             style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
-          >+ Ajouter</button>
+          >+ Add phase</button>
         </div>
       )}
 
