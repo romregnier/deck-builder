@@ -21,7 +21,7 @@ import { SlideRenderer } from '../components/deck/SlideRenderer'
 import { AnimatedBackground } from '../components/deck/AnimatedBackground'
 import { regenerateSlide } from '../lib/deckGenerator'
 import { publishDeck, generateHTMLForExport } from '../lib/deckPublisher'
-import type { SlideJSON, DeckTheme, SlideContent, DeckThemeJSON, SlideTransition, FontSize, SlideBackground } from '../types/deck'
+import type { SlideJSON, DeckTheme, SlideContent, DeckThemeJSON, SlideTransition, FontSize, SlideBackground, SlideType } from '../types/deck'
 import type { BgType } from '../components/deck/AnimatedBackground'
 import { BACKGROUND_PRESETS } from '../types/deck'
 
@@ -158,12 +158,14 @@ function PropsPanel({
   themeJSON,
   onUpdate,
   onRegenerate,
+  onChangeType,
 }: {
   slide: SlideData
   deckTitle: string
   themeJSON: DeckThemeJSON
   onUpdate: (content: SlideContent) => void
   onRegenerate: () => void
+  onChangeType?: (newType: SlideType) => void
 }) {
   const [regenerating, setRegenerating] = useState(false)
   const content = slide.content
@@ -236,6 +238,22 @@ function PropsPanel({
           Régénérer
         </button>
       </div>
+
+      {/* TK-0110 — Type selector */}
+      {onChangeType && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={fieldLabel}>Type de slide</label>
+          <select
+            value={SlideType}
+            onChange={e => onChangeType(e.target.value as SlideType)}
+            style={{ ...fieldStyle, cursor: 'pointer' }}
+          >
+            {(['hero','content','stats','quote','cta','chart','timeline','comparison','features','pricing','team','roadmap','market','orbit','mockup'] as const).map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* DB-16 — Champs texte supprimés : édition inline sur le canvas */}
       {/* Garder uniquement les contrôles structurels (ajouter/supprimer items) */}
@@ -536,6 +554,78 @@ function PropsPanel({
             >+ Ajouter un cercle</button>
           )}
         </div>
+      )}
+
+      {/* TK-0108 — Orbit : nodes + steps */}
+      {(SlideType === 'orbit') && (
+        <>
+          {/* Nodes */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={fieldLabel}>Nodes ({((content as any).nodes || []).length})</label>
+            {((content as any).nodes || []).map((_: unknown, i: number) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Node {i + 1}</span>
+                <button onClick={() => { const nodes = ((content as any).nodes || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, nodes } as SlideContent) }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}>×</button>
+              </div>
+            ))}
+            <button onClick={() => onUpdate({ ...content, nodes: [...((content as any).nodes || []), { initial: 'N', label: 'Nouveau node' }] } as SlideContent)}
+              style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}>
+              + Ajouter un node
+            </button>
+          </div>
+          {/* Steps */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={fieldLabel}>Étapes ({((content as any).steps || []).length})</label>
+            {((content as any).steps || []).map((_: unknown, i: number) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Étape {i + 1}</span>
+                <button onClick={() => { const steps = ((content as any).steps || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, steps } as SlideContent) }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}>×</button>
+              </div>
+            ))}
+            <button onClick={() => onUpdate({ ...content, steps: [...((content as any).steps || []), { num: ((content as any).steps || []).length + 1, title: 'Nouvelle étape', desc: '' }] } as SlideContent)}
+              style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}>
+              + Ajouter une étape
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* TK-0109 — Mockup : cards + agents */}
+      {(SlideType === 'mockup') && (
+        <>
+          {/* Cards */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={fieldLabel}>Cards ({((content as any).cards || []).length})</label>
+            {((content as any).cards || []).map((_: unknown, i: number) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Card {i + 1}</span>
+                <button onClick={() => { const cards = ((content as any).cards || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, cards } as SlideContent) }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}>×</button>
+              </div>
+            ))}
+            <button onClick={() => onUpdate({ ...content, cards: [...((content as any).cards || []), { status: 'todo', statusColor: '#6366f1', title: 'Nouvelle tâche', progress: 0 }] } as SlideContent)}
+              style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}>
+              + Ajouter une card
+            </button>
+          </div>
+          {/* Agents */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={fieldLabel}>Agents ({((content as any).agents || []).length})</label>
+            {((content as any).agents || []).map((_: unknown, i: number) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Agent {i + 1}</span>
+                <button onClick={() => { const agents = ((content as any).agents || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, agents } as SlideContent) }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}>×</button>
+              </div>
+            ))}
+            <button onClick={() => onUpdate({ ...content, agents: [...((content as any).agents || []), { name: 'Nouvel agent', role: '', color: '#E11F7B' }] } as SlideContent)}
+              style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}>
+              + Ajouter un agent
+            </button>
+          </div>
+        </>
       )}
 
       {/* ── Layout Variants ─────────────────────────────────────────────── */}
@@ -924,6 +1014,18 @@ export function DeckEditorPage() {
     )
     setSlides(updated)
     autoSave(activeSlide.id, content)
+  }
+
+  // TK-0110 — Changer le type d'une slide existante
+  async function updateSlideType(newType: SlideType) {
+    if (!activeSlide) return
+    await supabase
+      .from('slides')
+      .update({ type: newType, content_json: {} })
+      .eq('id', activeSlide.id)
+    setSlides(prev => prev.map((s, i) =>
+      i === activeIdx ? { ...s, type: newType, content: {} as SlideContent } : s
+    ))
   }
 
   // ── Inline edit helpers ────────────────────────────────────────────────────
@@ -1515,6 +1617,7 @@ export function DeckEditorPage() {
             themeJSON={themeJSON}
             onUpdate={updateSlideContent}
             onRegenerate={() => { /* trigger refresh */ }}
+            onChangeType={updateSlideType}
           />
         ) : (
           <div style={{ padding: 16, color: 'rgba(255,255,255,0.2)', fontSize: 13 }}>
