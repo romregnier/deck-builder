@@ -9,7 +9,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { supabase } from './supabase'
 import type { DeckBrief, DeckJSON, SlideJSON, SlideType } from '../types/deck'
 
-const GOOGLE_AI_KEY = 'AIzaSyAmLCREMg8cL856Wx3bhp9iQw7baj_f6r0'
+const GOOGLE_AI_KEY = import.meta.env.VITE_GOOGLE_AI_KEY || 'AIzaSyDHlY3Vv-3scAAzLGTyZxHr1mK9Qgc1rho'
 
 // ── Outline types ─────────────────────────────────────────────────────────────
 
