@@ -332,8 +332,19 @@ function PropsPanel({
           <div style={{ marginTop: 12 }}>
             <label style={fieldLabel}>Données ({((content as any).data || []).length} points)</label>
             {((content as any).data || []).map((_: unknown, i: number) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Point {i + 1}</span>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+                {/* Color picker */}
+                <input
+                  type="color"
+                  value={((content as any).data?.[i] as any)?.color || '#E11F7B'}
+                  onChange={e => {
+                    const data = [...((content as any).data || [])]
+                    data[i] = { ...data[i], color: e.target.value }
+                    onUpdate({ ...content, data } as SlideContent)
+                  }}
+                  style={{ width: 20, height: 20, border: 'none', borderRadius: 3, cursor: 'pointer', padding: 0, background: 'none', flexShrink: 0 }}
+                />
+                <span style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Point {i + 1}</span>
                 <button
                   onClick={() => {
                     const data = ((content as any).data || []).filter((_: unknown, j: number) => j !== i)
@@ -390,6 +401,17 @@ function PropsPanel({
             return (
               <div key={side} style={{ marginBottom: 12 }}>
                 <label style={fieldLabel}>{sideLabel} ({(col.items || []).length} items)</label>
+                {/* Color picker pour la colonne */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <input
+                    type="color"
+                    value={col.color || (side === 'left' ? '#E11F7B' : '#7C3AED')}
+                    onChange={e => onUpdate({ ...content, [side]: { ...col, color: e.target.value } })}
+                    style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0, background: 'none' }}
+                    title={`Couleur ${sideLabel}`}
+                  />
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'Poppins, sans-serif' }}>Couleur de la colonne</span>
+                </div>
                 {(col.items || []).map((_, j) => (
                   <div key={j} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Item {j + 1}</span>
@@ -490,20 +512,37 @@ function PropsPanel({
       {(SlideType === 'roadmap') && (
         <div style={{ marginBottom: 12 }}>
           <label style={fieldLabel}>Phases ({((content as any).phases || []).length})</label>
-          {((content as any).phases || []).map((_: unknown, i: number) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Phase {i + 1}</span>
-              <button
-                onClick={() => {
-                  const phases = ((content as any).phases || []).filter((_: unknown, j: number) => j !== i)
-                  onUpdate({ ...content, phases } as SlideContent)
-                }}
-                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
-              >×</button>
-            </div>
-          ))}
+          {((content as any).phases || []).map((p: { quarter?: string; title?: string; current?: boolean; status?: string }, i: number) => {
+            const STATUS_COLORS: Record<string, string> = { done: '#22C55E', 'in-progress': '#E11F7B', planned: 'rgba(255,255,255,0.3)' }
+            const status = p.status || (p.current ? 'in-progress' : 'planned')
+            return (
+              <div key={i} style={{ marginBottom: 6, padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[status] || STATUS_COLORS.planned, flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: 'Poppins, sans-serif' }}>{p.quarter || `Phase ${i + 1}`} — {p.title || '…'}</span>
+                  <button
+                    onClick={() => { const phases = ((content as any).phases || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, phases } as SlideContent) }}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+                  >×</button>
+                </div>
+                <select
+                  value={status}
+                  onChange={e => {
+                    const phases = [...((content as any).phases || [])]
+                    phases[i] = { ...phases[i], status: e.target.value, current: e.target.value === 'in-progress' }
+                    onUpdate({ ...content, phases } as SlideContent)
+                  }}
+                  style={{ width: '100%', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: STATUS_COLORS[status] || 'rgba(255,255,255,0.3)', fontSize: 10, fontFamily: 'Poppins, sans-serif', outline: 'none', cursor: 'pointer' }}
+                >
+                  <option value="done">✅ Done</option>
+                  <option value="in-progress">🔄 In Progress</option>
+                  <option value="planned">📅 Planned</option>
+                </select>
+              </div>
+            )
+          })}
           <button
-            onClick={() => onUpdate({ ...content, phases: [...((content as any).phases || []), { quarter: 'Q?', title: 'Nouvelle phase', items: [], current: false }] } as SlideContent)}
+            onClick={() => onUpdate({ ...content, phases: [...((content as any).phases || []), { quarter: 'Q?', title: 'Nouvelle phase', items: [], status: 'planned', current: false }] } as SlideContent)}
             style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
           >+ Ajouter</button>
         </div>

@@ -1293,25 +1293,27 @@ function renderSlide(
           <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: thumbnail ? 6 : 24, minHeight: 0 }}>
             {[left, right].map((col, i) => {
               const isRight = i === 1
-              const colAccent = isRight ? accentColor : 'rgba(255,255,255,0.3)'
+              const defaultAccent = isRight ? accentColor : 'rgba(255,255,255,0.3)'
+              const colColor = (col as { color?: string }).color || defaultAccent
+              const colAccent = colColor
               return (
                 <div key={i} style={{
                   borderRadius: thumbnail ? 4 : 16,
                   border: `1px solid ${colAccent}33`,
-                  background: isRight ? `${accentColor}0A` : 'rgba(255,255,255,0.03)',
+                  background: isRight ? `${colAccent}0A` : 'rgba(255,255,255,0.03)',
                   overflow: 'hidden',
-                  boxShadow: isRight && !thumbnail ? `0 0 32px ${accentColor}22` : 'none',
+                  boxShadow: isRight && !thumbnail ? `0 0 32px ${colAccent}22` : 'none',
                   display: 'flex', flexDirection: 'column',
                 }}>
                   {/* Header */}
                   <div style={{
                     padding: thumbnail ? '4px 6px' : '16px 24px',
                     background: isRight
-                      ? `linear-gradient(135deg, ${accentColor}22, ${accentColor}11)`
+                      ? `linear-gradient(135deg, ${colAccent}22, ${colAccent}11)`
                       : 'rgba(255,255,255,0.05)',
                     borderBottom: `1px solid ${colAccent}33`,
                     fontSize: thumbnail ? 6 : 18, fontWeight: 800,
-                    color: isRight ? accentColor : 'rgba(255,255,255,0.6)',
+                    color: colAccent,
                     textAlign: 'center',
                   }}>
                     {editMode ? (
@@ -1322,7 +1324,7 @@ function renderSlide(
                   <div style={{ padding: thumbnail ? '4px 6px' : '20px 24px', display: 'flex', flexDirection: 'column', gap: thumbnail ? 3 : 12 }}>
                     {(col.items || []).map((item, j) => (
                       <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: thumbnail ? 3 : 10 }}>
-                        <span style={{ color: isRight ? accentColor : 'rgba(255,255,255,0.3)', fontSize: thumbnail ? 6 : 16, flexShrink: 0, marginTop: 1 }}>
+                        <span style={{ color: colAccent, fontSize: thumbnail ? 6 : 16, flexShrink: 0, marginTop: 1 }}>
                           {isRight ? '✓' : '×'}
                         </span>
                         {editMode ? (
@@ -1647,9 +1649,10 @@ function renderSlide(
     }
 
     case 'roadmap': {
+      const accentColor = themeJSON?.accentColor || '#E11F7B'
       const roadmapContent = content as {
         eyebrow?: string; title?: string;
-        phases?: Array<{icon?: string; quarter?: string; title?: string; items?: string[]; color?: string; current?: boolean; desc?: string}>
+        phases?: Array<{icon?: string; quarter?: string; title?: string; items?: string[]; color?: string; current?: boolean; desc?: string; status?: string}>
       }
       const phases = roadmapContent.phases || []
       return (
@@ -1673,7 +1676,7 @@ function renderSlide(
                     onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
                   >×</button>
                 )}
-                <div className="roadmap-dot" data-current={p.current ? 'true' : 'false'} style={{ color: p.color || '#E11F7B', borderColor: p.color || '#E11F7B' }}>
+                <div className="roadmap-dot" data-current={p.current ? 'true' : 'false'} style={{ color: p.color || (p.status === 'done' ? '#22C55E' : p.status === 'in-progress' || p.current ? accentColor : 'rgba(255,255,255,0.2)'), borderColor: p.color || (p.status === 'done' ? '#22C55E' : p.status === 'in-progress' || p.current ? accentColor : 'rgba(255,255,255,0.2)') }}>
                   {p.icon}
                 </div>
                 <div className="roadmap-content">
@@ -1985,7 +1988,7 @@ function BarChart({
   thumbnail,
   chartId = 'default',
 }: {
-  data: { label: string; value: number }[]
+  data: { label: string; value: number; color?: string }[]
   thumbnail?: boolean
   chartId?: string
 }) {
@@ -2047,13 +2050,15 @@ function BarChart({
         const barH = Math.max(4, (item.value / max) * chartH)
         const x = PAD_LEFT + gap * i + gap / 2 - barW / 2
         const y = PAD_TOP + chartH - barH
+        const barFill = item.color ? item.color : `url(#${barGradId})`
+        const barLabelColor = item.color || '#E11F7B'
         return (
           <g key={i}>
             <rect
               x={x} y={y}
               width={barW} height={barH}
               rx={4} ry={4}
-              fill={`url(#${barGradId})`}
+              fill={barFill}
               style={thumbnail ? undefined : {
                 transition: 'height 0.6s cubic-bezier(0.22,1,0.36,1)',
               }}
@@ -2064,7 +2069,7 @@ function BarChart({
               textAnchor="middle"
               fontSize="10"
               fontWeight="600"
-              fill="#E11F7B"
+              fill={barLabelColor}
               fontFamily="Poppins, sans-serif"
             >
               {item.value}
