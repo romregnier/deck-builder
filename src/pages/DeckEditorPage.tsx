@@ -628,6 +628,20 @@ function PropsPanel({
         </>
       )}
 
+      {/* ── TK-0113 — URL du bouton CTA ──────────────────────────────── */}
+      {(SlideType === 'hero' || SlideType === 'cta') && (content as any).buttonText && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>URL du bouton CTA</label>
+          <input
+            type="url"
+            value={(content as any).buttonUrl || ''}
+            onChange={e => onUpdate({ ...content, buttonUrl: e.target.value } as SlideContent)}
+            placeholder="https://..."
+            style={{ ...fieldStyle }}
+          />
+        </div>
+      )}
+
       {/* ── Layout Variants ─────────────────────────────────────────────── */}
       {(['hero', 'content', 'stats'] as const).includes(SlideType as 'hero' | 'content' | 'stats') && (() => {
         // FIX B — Keys alignées avec sélecteurs CSS aria-deck.css
@@ -826,6 +840,7 @@ function SlideThumbnail({
   onMoveUp,
   onMoveDown,
   onDelete,
+  onDuplicate,
   isFirst,
   isLast,
 }: {
@@ -838,6 +853,7 @@ function SlideThumbnail({
   onMoveUp: () => void
   onMoveDown: () => void
   onDelete: () => void
+  onDuplicate: () => void
   isFirst: boolean
   isLast: boolean
 }) {
@@ -889,6 +905,13 @@ function SlideThumbnail({
               </button>
             )}
             <button
+              onClick={e => { e.stopPropagation(); onDuplicate() }}
+              title="Dupliquer"
+              style={{ ...iconBtnStyle }}
+            >
+              ⧉
+            </button>
+            <button
               onClick={e => { e.stopPropagation(); onDelete() }}
               style={{ ...iconBtnStyle, color: '#EF4444' }}
             >
@@ -910,6 +933,25 @@ const iconBtnStyle: React.CSSProperties = {
 
 // ── DeckEditorPage ────────────────────────────────────────────────────────────
 
+// TK-0112 — Slide type presets
+const SLIDE_TYPE_PRESETS: Array<{ type: SlideType; icon: string; label: string; defaultContent: Record<string, unknown> }> = [
+  { type: 'hero',       icon: '🦸', label: 'Hero',        defaultContent: { title: 'Titre principal', subtitle: 'Sous-titre accrocheur', eyebrow: 'Eyebrow' } },
+  { type: 'content',    icon: '📄', label: 'Contenu',     defaultContent: { label: 'Section', title: 'Titre', body: 'Corps du texte...', bullets: ['Point 1', 'Point 2'] } },
+  { type: 'stats',      icon: '📊', label: 'Stats',       defaultContent: { title: 'Métriques clés', metrics: [{ value: '1M+', label: 'Utilisateurs' }, { value: '99%', label: 'Satisfaction' }] } },
+  { type: 'quote',      icon: '💬', label: 'Citation',    defaultContent: { text: 'Une citation inspirante.', author: 'Auteur', role: 'Rôle' } },
+  { type: 'cta',        icon: '🚀', label: 'CTA',         defaultContent: { title: "Passez à l'action", subtitle: 'Description', buttonText: 'Commencer' } },
+  { type: 'chart',      icon: '📈', label: 'Graphique',   defaultContent: { title: 'Graphique', chartType: 'bar', data: [{ label: 'A', value: 40 }, { label: 'B', value: 70 }, { label: 'C', value: 55 }] } },
+  { type: 'timeline',   icon: '⏳', label: 'Timeline',    defaultContent: { title: 'Historique', events: [{ year: '2023', label: 'Lancement', desc: '' }, { year: '2024', label: 'Croissance', desc: '' }] } },
+  { type: 'comparison', icon: '⚖️', label: 'Comparaison', defaultContent: { title: 'Avant / Après', left: { label: 'Avant', items: ['Item 1'] }, right: { label: 'Après', items: ['Item 1'] } } },
+  { type: 'features',   icon: '✨', label: 'Features',    defaultContent: { title: 'Fonctionnalités', features: [{ icon: '🔥', title: 'Feature 1', desc: 'Description' }, { icon: '⚡', title: 'Feature 2', desc: 'Description' }] } },
+  { type: 'pricing',    icon: '💰', label: 'Pricing',     defaultContent: { title: 'Tarifs', tiers: [{ name: 'Starter', price: '0€', per: '/mois', desc: '', features: [], featured: false }, { name: 'Pro', price: '29€', per: '/mois', desc: '', features: [], featured: true }] } },
+  { type: 'team',       icon: '👥', label: 'Équipe',      defaultContent: { title: 'Notre équipe', members: [{ initial: 'A', name: 'Alice', role: 'CEO', bio: '' }] } },
+  { type: 'roadmap',    icon: '🗺️', label: 'Roadmap',     defaultContent: { title: 'Roadmap', phases: [{ quarter: 'Q1', title: 'Phase 1', items: [], current: true }] } },
+  { type: 'market',     icon: '🎯', label: 'Marché',      defaultContent: { title: 'Marché', bars: [{ label: 'TAM', value: '$100B', color: '#E11F7B', width: 100 }, { label: 'SAM', value: '$10B', color: '#7C3AED', width: 65 }, { label: 'SOM', value: '$1B', color: '#00d4ff', width: 35 }] } },
+  { type: 'orbit',      icon: '🌐', label: 'Orbit',       defaultContent: { title: 'Écosystème', nodes: [{ initial: 'A', label: 'Node A' }], steps: [{ num: 1, title: 'Étape 1', desc: '' }] } },
+  { type: 'mockup',     icon: '🖥️', label: 'Mockup',      defaultContent: { title: 'Interface', cards: [{ status: 'todo', statusColor: '#6366f1', title: 'Tâche', progress: 0 }], agents: [] } },
+]
+
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -930,6 +972,7 @@ export function DeckEditorPage() {
   const [previousThemeJson, setPreviousThemeJson] = useState<string | null>(null)
   const [undoToast, setUndoToast] = useState(false)
   const [mobileTab, setMobileTab] = useState<'slides' | 'canvas' | 'props'>('canvas')
+  const [showAddSlideModal, setShowAddSlideModal] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // ── Inline edit state ──────────────────────────────────────────────────────
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
@@ -1143,25 +1186,6 @@ export function DeckEditorPage() {
     setDeck(d => d ? { ...d, title: titleValue } : d)
   }
 
-  async function addSlide() {
-    if (!id) return
-    const newSlide = {
-      deck_id: id,
-      position: slides.length + 1,
-      type: 'content' as const,
-      content_json: {
-        label: 'Nouvelle section',
-        title: 'Titre de la slide',
-        body: 'Décrivez le contenu ici...',
-      },
-    }
-    const { data } = await supabase.from('slides').insert(newSlide).select().single()
-    if (data) {
-      setSlides(prev => [...prev, { ...data, content: data.content_json } as SlideData])
-      setActiveIdx(slides.length)
-    }
-  }
-
   async function moveSlide(idx: number, direction: 'up' | 'down') {
     const targetIdx = direction === 'up' ? idx - 1 : idx + 1
     if (targetIdx < 0 || targetIdx >= slides.length) return
@@ -1191,6 +1215,38 @@ export function DeckEditorPage() {
     updated.forEach((s, i) => { s.position = i + 1 })
     setSlides(updated)
     setActiveIdx(Math.min(activeIdx, updated.length - 1))
+  }
+
+  async function duplicateSlide(idx: number) {
+    if (!id) return
+    const source = slides[idx]
+    const newSlide = {
+      deck_id: id,
+      position: slides.length + 1,
+      type: source.type,
+      content_json: source.content,
+    }
+    const { data } = await supabase.from('slides').insert(newSlide).select().single()
+    if (data) {
+      setSlides(prev => [...prev, { ...data, content: data.content_json } as SlideData])
+      setActiveIdx(slides.length)
+    }
+  }
+
+  async function addSlideWithType(preset: typeof SLIDE_TYPE_PRESETS[0]) {
+    if (!id) return
+    const newSlide = {
+      deck_id: id,
+      position: slides.length + 1,
+      type: preset.type,
+      content_json: preset.defaultContent,
+    }
+    const { data } = await supabase.from('slides').insert(newSlide).select().single()
+    if (data) {
+      setSlides(prev => [...prev, { ...data, content: data.content_json } as SlideData])
+      setActiveIdx(slides.length)
+    }
+    setShowAddSlideModal(false)
   }
 
   async function handleExportPDF() {
@@ -1502,6 +1558,7 @@ export function DeckEditorPage() {
                 onMoveUp={() => moveSlide(i, 'up')}
                 onMoveDown={() => moveSlide(i, 'down')}
                 onDelete={() => deleteSlide(i)}
+                onDuplicate={() => duplicateSlide(i)}
                 isFirst={i === 0}
                 isLast={i === slides.length - 1}
               />
@@ -1510,7 +1567,7 @@ export function DeckEditorPage() {
         </AnimatePresence>
 
         <button
-          onClick={addSlide}
+          onClick={() => setShowAddSlideModal(true)}
           style={{
             width: '100%', padding: '8px', borderRadius: 6,
             border: '1px dashed rgba(255,255,255,0.12)',
@@ -1522,6 +1579,47 @@ export function DeckEditorPage() {
           <Plus size={13} />
           Ajouter
         </button>
+
+        {/* TK-0112 — Add slide type picker modal */}
+        {showAddSlideModal && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }} onClick={() => setShowAddSlideModal(false)}>
+            <div style={{
+              background: '#1a1520', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 12, padding: 24, maxWidth: 480, width: '90%',
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.9)', fontFamily: 'Poppins, sans-serif' }}>
+                  Choisir un type de slide
+                </span>
+                <button onClick={() => setShowAddSlideModal(false)}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+                {SLIDE_TYPE_PRESETS.map(preset => (
+                  <button
+                    key={preset.type}
+                    onClick={() => addSlideWithType(preset)}
+                    style={{
+                      background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: 8, padding: '10px 4px', cursor: 'pointer',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                      transition: 'all 0.15s', fontFamily: 'Poppins, sans-serif',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(225,31,123,0.12)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(225,31,123,0.3)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)' }}
+                  >
+                    <span style={{ fontSize: 20 }}>{preset.icon}</span>
+                    <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Canvas zone ─────────────────────────────────────────────────────── */}

@@ -473,6 +473,37 @@ function renderSlide(
           ) : content.subtitle ? (
             <p className="tpl-hero__sub" style={{ position: 'relative', zIndex: 1 }}>{content.subtitle}</p>
           ) : null)}
+          {/* TK-0113 — Hero CTA button */}
+          {(content as any).buttonText && (
+            <div style={{ marginTop: 24, position: 'relative', zIndex: 1 }}>
+              {(content as any).buttonUrl && !editMode ? (
+                <a
+                  href={(content as any).buttonUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="tpl-cta__btn"
+                  style={{ display: 'inline-block', textDecoration: 'none' }}
+                >
+                  {(content as any).buttonText}
+                </a>
+              ) : (
+                <button className="tpl-cta__btn" style={{ pointerEvents: editMode ? 'none' : 'auto' }}>
+                  {editMode ? (
+                    <EditableField
+                      as="span"
+                      value={(content as any).buttonText || ''}
+                      fieldId="buttonText"
+                      onSave={v => onFieldSave?.('buttonText', v)}
+                      selected={selectedFieldId === 'buttonText'}
+                      editMode={editMode}
+                      onDoubleClick={() => onFieldSelect?.('buttonText')}
+                      placeholder="CTA..."
+                    />
+                  ) : (content as any).buttonText}
+                </button>
+              )}
+            </div>
+          )}
         </>
       )
 

@@ -80,6 +80,7 @@ export interface SlideContent {
   role?: string
   // cta
   buttonText?: string
+  buttonUrl?: string
   // chart
   chartType?: 'bar' | 'line' | 'pie' | 'donut'
   data?: { label: string; value: number }[]
