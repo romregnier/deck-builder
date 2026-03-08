@@ -1013,6 +1013,10 @@ export function DeckEditorPage() {
   const [mobileTab, setMobileTab] = useState<'slides' | 'canvas' | 'props'>('canvas')
   const [showAddSlideModal, setShowAddSlideModal] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // TK-0118 — Undo/Redo stacks
+  const undoStackRef = useRef<Array<{ slideId: string; content: SlideContent }[]>>([])
+  const redoStackRef = useRef<Array<{ slideId: string; content: SlideContent }[]>>([])
+  const MAX_UNDO = 20
   // ── Inline edit state ──────────────────────────────────────────────────────
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
 
@@ -1036,16 +1040,51 @@ export function DeckEditorPage() {
     if (id) fetchDeck(id)
   }, [id])
 
-  // Escape → déselectionne le champ en édition
+  // TK-0117 + TK-0118 — Raccourcis clavier : nav slides + suppr + escape + undo/redo
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      // Escape — déselectionne le champ en édition
       if (e.key === 'Escape') {
         setSelectedFieldId(null)
+        return
+      }
+
+      // Ctrl+Z — Undo (AVANT le guard tagName pour fonctionner même en édition inline)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        handleUndo()
+        return
+      }
+      // Ctrl+Y ou Ctrl+Shift+Z — Redo
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault()
+        handleRedo()
+        return
+      }
+
+      // Ne pas intercepter si focus dans un input/textarea/contenteditable
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+
+      // Arrow Left/Right — navigation entre slides
+      if (e.key === 'ArrowLeft' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        setActiveIdx(prev => Math.max(0, prev - 1))
+      }
+      if (e.key === 'ArrowRight' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        setActiveIdx(prev => Math.min(slides.length - 1, prev + 1))
+      }
+
+      // Delete / Backspace — supprimer la slide active (avec garde)
+      if ((e.key === 'Delete' || e.key === 'Backspace') && slides.length > 1) {
+        e.preventDefault()
+        deleteSlide(activeIdx)
       }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [slides, activeIdx]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchDeck(deckId: string) {
     setLoading(true)
@@ -1091,11 +1130,43 @@ export function DeckEditorPage() {
 
   function updateSlideContent(content: SlideContent) {
     if (!activeSlide) return
+    // TK-0118 — Sauvegarder snapshot avant modification
+    const snapshot = slides.map(s => ({ slideId: s.id, content: s.content }))
+    undoStackRef.current = [...undoStackRef.current.slice(-(MAX_UNDO - 1)), snapshot]
+    redoStackRef.current = []
     const updated = slides.map((s, i) =>
       i === activeIdx ? { ...s, content } : s
     )
     setSlides(updated)
     autoSave(activeSlide.id, content)
+  }
+
+  // TK-0118 — Undo
+  function handleUndo() {
+    if (undoStackRef.current.length === 0) return
+    const currentSnapshot = slides.map(s => ({ slideId: s.id, content: s.content }))
+    redoStackRef.current = [...redoStackRef.current, currentSnapshot]
+    const prevSnapshot = undoStackRef.current[undoStackRef.current.length - 1]
+    undoStackRef.current = undoStackRef.current.slice(0, -1)
+    setSlides(prev => prev.map(s => {
+      const saved = prevSnapshot.find(snap => snap.slideId === s.id)
+      return saved ? { ...s, content: saved.content } : s
+    }))
+    prevSnapshot.forEach(snap => autoSave(snap.slideId, snap.content))
+  }
+
+  // TK-0118 — Redo
+  function handleRedo() {
+    if (redoStackRef.current.length === 0) return
+    const currentSnapshot = slides.map(s => ({ slideId: s.id, content: s.content }))
+    undoStackRef.current = [...undoStackRef.current, currentSnapshot]
+    const nextSnapshot = redoStackRef.current[redoStackRef.current.length - 1]
+    redoStackRef.current = redoStackRef.current.slice(0, -1)
+    setSlides(prev => prev.map(s => {
+      const saved = nextSnapshot.find(snap => snap.slideId === s.id)
+      return saved ? { ...s, content: saved.content } : s
+    }))
+    nextSnapshot.forEach(snap => autoSave(snap.slideId, snap.content))
   }
 
   // TK-0110 — Changer le type d'une slide existante

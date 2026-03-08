@@ -1719,7 +1719,22 @@ function renderSlide(
       const bars = marketContent.bars || []
       return (
         <div className="tpl-market">
-          {marketContent.eyebrow && <Eyebrow text={marketContent.eyebrow} />}
+          {editMode ? (
+            <EditableField
+              as="div"
+              className="tpl-eyebrow"
+              value={(content as any).eyebrow || ''}
+              fieldId="eyebrow"
+              onSave={v => onFieldSave?.('eyebrow', v)}
+              selected={selectedFieldId === 'eyebrow'}
+              editMode={editMode}
+              onDoubleClick={() => onFieldSelect?.('eyebrow')}
+              placeholder="Eyebrow..."
+              style={{ position: 'relative', zIndex: 1 }}
+            />
+          ) : (content as any).eyebrow ? (
+            <Eyebrow text={(content as any).eyebrow} />
+          ) : null}
           {editMode ? (
             <EditableField as="h2" className="tpl-market__title" value={marketContent.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={gradientText ? gradientTextStyle : {}} placeholder="Titre marché..." />
           ) : marketContent.title ? (
@@ -1814,7 +1829,22 @@ function renderSlide(
         <div className="tpl-orbit">
           {/* Left: visual */}
           <div>
-            {orbitContent.eyebrow && <Eyebrow text={orbitContent.eyebrow} />}
+            {editMode ? (
+              <EditableField
+                as="div"
+                className="tpl-eyebrow"
+                value={(content as any).eyebrow || ''}
+                fieldId="eyebrow"
+                onSave={v => onFieldSave?.('eyebrow', v)}
+                selected={selectedFieldId === 'eyebrow'}
+                editMode={editMode}
+                onDoubleClick={() => onFieldSelect?.('eyebrow')}
+                placeholder="Eyebrow..."
+                style={{ position: 'relative', zIndex: 1 }}
+              />
+            ) : (content as any).eyebrow ? (
+              <Eyebrow text={(content as any).eyebrow} />
+            ) : null}
             {editMode ? (
               <EditableField as="h2" value={orbitContent.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: 'clamp(24px, 3cqw, 40px)', fontWeight: 800, letterSpacing: '-1px', marginBottom: 32, ...(gradientText ? gradientTextStyle : {color:'var(--text-pri)'}) }} placeholder="Titre..." />
             ) : orbitContent.title ? (
