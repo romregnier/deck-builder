@@ -311,6 +311,25 @@ function PropsPanel({
             <option value="pie">🥧 Pie</option>
             <option value="donut">🍩 Donut</option>
           </select>
+          <div style={{ marginTop: 12 }}>
+            <label style={fieldLabel}>Données ({((content as any).data || []).length} points)</label>
+            {((content as any).data || []).map((_: unknown, i: number) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Point {i + 1}</span>
+                <button
+                  onClick={() => {
+                    const data = ((content as any).data || []).filter((_: unknown, j: number) => j !== i)
+                    onUpdate({ ...content, data } as SlideContent)
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+                >×</button>
+              </div>
+            ))}
+            <button
+              onClick={() => onUpdate({ ...content, data: [...((content as any).data || []), { label: 'Nouveau', value: 0 }] } as SlideContent)}
+              style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
+            >+ Ajouter un point</button>
+          </div>
         </div>
       )}
 
@@ -378,6 +397,145 @@ function PropsPanel({
             )
           })}
         </>
+      )}
+
+      {/* Features — gestion items */}
+      {(SlideType === 'features') && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>Features ({((content as any).features || []).length})</label>
+          {((content as any).features || []).map((_: unknown, i: number) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Feature {i + 1}</span>
+              <button
+                onClick={() => {
+                  const features = ((content as any).features || []).filter((_: unknown, j: number) => j !== i)
+                  onUpdate({ ...content, features } as SlideContent)
+                }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+              >×</button>
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ ...content, features: [...((content as any).features || []), { icon: '✨', title: 'Nouvelle feature', desc: 'Description' }] } as SlideContent)}
+            style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
+          >+ Ajouter</button>
+        </div>
+      )}
+
+      {/* Pricing — gestion tiers */}
+      {(SlideType === 'pricing') && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>Offres ({((content as any).tiers || []).length})</label>
+          {((content as any).tiers || []).map((_: unknown, i: number) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Tier {i + 1}</span>
+              <button
+                onClick={() => {
+                  const tiers = ((content as any).tiers || []).filter((_: unknown, j: number) => j !== i)
+                  onUpdate({ ...content, tiers } as SlideContent)
+                }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+              >×</button>
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ ...content, tiers: [...((content as any).tiers || []), { name: 'Nouveau tier', price: '—', per: '/mois', desc: '', features: [], featured: false }] } as SlideContent)}
+            style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
+          >+ Ajouter</button>
+        </div>
+      )}
+
+      {/* Team — gestion membres */}
+      {(SlideType === 'team') && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>Membres ({((content as any).members || []).length})</label>
+          {((content as any).members || []).map((_: unknown, i: number) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Membre {i + 1}</span>
+              <button
+                onClick={() => {
+                  const members = ((content as any).members || []).filter((_: unknown, j: number) => j !== i)
+                  onUpdate({ ...content, members } as SlideContent)
+                }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+              >×</button>
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ ...content, members: [...((content as any).members || []), { initial: 'N', name: 'Prénom Nom', role: 'Rôle', bio: '' }] } as SlideContent)}
+            style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
+          >+ Ajouter</button>
+        </div>
+      )}
+
+      {/* Roadmap — gestion phases */}
+      {(SlideType === 'roadmap') && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>Phases ({((content as any).phases || []).length})</label>
+          {((content as any).phases || []).map((_: unknown, i: number) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Phase {i + 1}</span>
+              <button
+                onClick={() => {
+                  const phases = ((content as any).phases || []).filter((_: unknown, j: number) => j !== i)
+                  onUpdate({ ...content, phases } as SlideContent)
+                }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+              >×</button>
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ ...content, phases: [...((content as any).phases || []), { quarter: 'Q?', title: 'Nouvelle phase', items: [], current: false }] } as SlideContent)}
+            style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
+          >+ Ajouter</button>
+        </div>
+      )}
+
+      {/* Market — gestion cercles TAM/SAM/SOM */}
+      {(SlideType === 'market') && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>Cercles ({((content as any).bars || []).length}/3 max)</label>
+          {((content as any).bars || []).map((b: { label?: string; color?: string }, i: number) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <input
+                type="color"
+                value={b.color || (['#E11F7B', '#7C3AED', '#00d4ff'][i] || '#E11F7B')}
+                onChange={e => {
+                  const bars = [...((content as any).bars || [])]
+                  bars[i] = { ...bars[i], color: e.target.value }
+                  onUpdate({ ...content, bars } as SlideContent)
+                }}
+                style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0, background: 'none' }}
+                title="Couleur du cercle"
+              />
+              <span style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>
+                {b.label || (['TAM', 'SAM', 'SOM'][i] || `Cercle ${i + 1}`)}
+              </span>
+              <button
+                onClick={() => {
+                  const bars = ((content as any).bars || []).filter((_: unknown, j: number) => j !== i)
+                  onUpdate({ ...content, bars } as SlideContent)
+                }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+              >×</button>
+            </div>
+          ))}
+          {((content as any).bars || []).length < 3 && (
+            <button
+              onClick={() => {
+                const defaults = [
+                  { label: 'TAM', value: '$100B', color: '#E11F7B', width: 100 },
+                  { label: 'SAM', value: '$10B', color: '#7C3AED', width: 65 },
+                  { label: 'SOM', value: '$1B', color: '#00d4ff', width: 35 },
+                ]
+                const idx = ((content as any).bars || []).length
+                const bars = [...((content as any).bars || []), defaults[idx] || { label: `Cercle ${idx + 1}`, value: '—', color: '#E11F7B', width: 30 }]
+                onUpdate({ ...content, bars } as SlideContent)
+              }}
+              style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
+            >+ Ajouter un cercle</button>
+          )}
+        </div>
       )}
 
       {/* ── Layout Variants ─────────────────────────────────────────────── */}
