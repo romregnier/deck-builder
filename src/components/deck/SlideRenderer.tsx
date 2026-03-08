@@ -895,10 +895,22 @@ function renderSlide(
               style={_addItemBtnStyle}
             >+ Ajouter une métrique</button>
           )}
-          {statsContent.footnote && (
-            <p style={{ fontSize: 11, color: 'var(--text-sec)', fontStyle: 'italic', textAlign: 'center', marginTop: 20, maxWidth: 700 }}>
-              {statsContent.footnote}
-            </p>
+          {/* TK-0088 — Stats footnote éditable */}
+          {(editMode || statsContent.footnote) && (
+            <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)', width: '100%' }}>
+              {editMode ? (
+                <EditableField as="p" value={statsContent.footnote || ''}
+                  fieldId="footnote" onSave={v => onFieldSave?.('footnote', v)}
+                  selected={selectedFieldId === 'footnote'} editMode={editMode}
+                  multiline onDoubleClick={() => onFieldSelect?.('footnote')}
+                  style={{ fontSize: 'clamp(11px,1.2cqw,14px)', color: 'var(--text-sec)', fontStyle: 'italic', lineHeight: 1.5, textAlign: 'center' }}
+                  placeholder="Texte de conclusion..." />
+              ) : (
+                <p style={{ fontSize: 'clamp(11px,1.2cqw,14px)', color: 'var(--text-sec)', fontStyle: 'italic', lineHeight: 1.5, textAlign: 'center', margin: 0 }}>
+                  {statsContent.footnote}
+                </p>
+              )}
+            </div>
           )}
         </div>
       )
@@ -1071,6 +1083,26 @@ function renderSlide(
               default:       return <BarChart data={chartData} thumbnail={thumbnail} chartId={chartId} />
             }
           })()}
+          {/* TK-0080 — Panneau d'édition des données graphique */}
+          {editMode && (
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 4, width: '100%', maxWidth: 500 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-sec)', fontWeight: 600, marginBottom: 4 }}>Données du graphique</div>
+              {chartData.map((pt: { label: string; value: number }, i: number) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <EditableField as="span" value={pt.label || ''} fieldId={`data.${i}.label`}
+                    onSave={v => onFieldSave?.(`data.${i}.label`, v)}
+                    selected={selectedFieldId === `data.${i}.label`}
+                    editMode={editMode} onDoubleClick={() => onFieldSelect?.(`data.${i}.label`)}
+                    style={{ flex: 1, fontSize: 12, color: 'var(--text-pri)' }} placeholder="Label..." />
+                  <EditableField as="span" value={String(pt.value ?? '')} fieldId={`data.${i}.value`}
+                    onSave={v => onFieldSave?.(`data.${i}.value`, v)}
+                    selected={selectedFieldId === `data.${i}.value`}
+                    editMode={editMode} onDoubleClick={() => onFieldSelect?.(`data.${i}.value`)}
+                    style={{ width: 60, fontSize: 12, textAlign: 'right', color: 'var(--accent)' }} placeholder="0" />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )
     }
@@ -1659,26 +1691,65 @@ function renderSlide(
           ) : marketContent.title ? (
             <h2 className="tpl-market__title" style={gradientText ? gradientTextStyle : {}}>{marketContent.title}</h2>
           ) : null}
-          <div className="market-bars">
-            {bars.map((b, i) => (
-              <div key={i} className="market-bar-row">
-                {editMode ? (
-                  <EditableField as="div" className="market-bar-label" value={b.label || ''} fieldId={`bars.${i}.label`} onSave={v => onFieldSave?.(`bars.${i}.label`, v)} selected={selectedFieldId === `bars.${i}.label`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`bars.${i}.label`)} placeholder="Label..." />
-                ) : (
-                  <div className="market-bar-label">{b.label}</div>
-                )}
-                <div className="market-bar-track">
-                  <div className="market-bar-fill" style={{ width: `${b.width || 50}%`, background: b.color || '#E11F7B' }}>
-                    {b.desc}
+          {/* TK-0089 — Cercles concentriques TAM/SAM/SOM */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 32, flex: 1, marginTop: 20 }}>
+            <div style={{ position: 'relative', width: thumbnail ? 100 : 200, height: thumbnail ? 100 : 200, flexShrink: 0 }}>
+              <svg width={thumbnail ? 100 : 200} height={thumbnail ? 100 : 200} viewBox="0 0 200 200">
+                {bars.slice(0, 3).map((_b, i) => {
+                  const radii = [90, 65, 40]
+                  const circleColors = [bars[0]?.color || '#E11F7B', bars[1]?.color || '#7C3AED', bars[2]?.color || '#00d4ff']
+                  return (
+                    <circle key={i} cx="100" cy="100" r={radii[i]}
+                      fill={`${circleColors[i]}18`}
+                      stroke={circleColors[i]}
+                      strokeWidth={thumbnail ? 1 : 2} />
+                  )
+                })}
+              </svg>
+              {bars.slice(0, 3).map((b, i) => {
+                const labelPositions: React.CSSProperties[] = [
+                  { top: '5%', left: '50%', transform: 'translateX(-50%)' },
+                  { top: '28%', left: '50%', transform: 'translateX(-50%)' },
+                  { top: '50%', left: '50%', transform: 'translateX(-50%)' },
+                ]
+                const circleColors = [bars[0]?.color || '#E11F7B', bars[1]?.color || '#7C3AED', bars[2]?.color || '#00d4ff']
+                return (
+                  <div key={i} style={{ position: 'absolute', textAlign: 'center', ...labelPositions[i] }}>
+                    {editMode ? (
+                      <EditableField as="div" value={b.label || ''} fieldId={`bars.${i}.label`}
+                        onSave={v => onFieldSave?.(`bars.${i}.label`, v)}
+                        selected={selectedFieldId === `bars.${i}.label`} editMode={editMode}
+                        onDoubleClick={() => onFieldSelect?.(`bars.${i}.label`)}
+                        style={{ fontSize: thumbnail ? 5 : 11, fontWeight: 700, color: circleColors[i] }}
+                        placeholder="Label..." />
+                    ) : <div style={{ fontSize: thumbnail ? 5 : 11, fontWeight: 700, color: circleColors[i] }}>{b.label}</div>}
+                    {editMode ? (
+                      <EditableField as="div" value={b.value || ''} fieldId={`bars.${i}.value`}
+                        onSave={v => onFieldSave?.(`bars.${i}.value`, v)}
+                        selected={selectedFieldId === `bars.${i}.value`} editMode={editMode}
+                        onDoubleClick={() => onFieldSelect?.(`bars.${i}.value`)}
+                        style={{ fontSize: thumbnail ? 4 : 10, color: 'var(--text-sec)' }}
+                        placeholder="$X M" />
+                    ) : <div style={{ fontSize: thumbnail ? 4 : 10, color: 'var(--text-sec)' }}>{b.value}</div>}
                   </div>
-                </div>
-                {editMode ? (
-                  <EditableField as="div" className="market-bar-value" value={b.value || ''} fieldId={`bars.${i}.value`} onSave={v => onFieldSave?.(`bars.${i}.value`, v)} selected={selectedFieldId === `bars.${i}.value`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`bars.${i}.value`)} style={{ color: b.color || '#E11F7B' }} placeholder="$X M" />
-                ) : (
-                  <div className="market-bar-value" style={{ color: b.color || '#E11F7B' }}>{b.value}</div>
-                )}
-              </div>
-            ))}
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: thumbnail ? 4 : 12 }}>
+              {bars.map((b, i) => {
+                const legendColors = [bars[0]?.color || '#E11F7B', bars[1]?.color || '#7C3AED', bars[2]?.color || '#00d4ff']
+                const color = b.color || legendColors[i] || '#E11F7B'
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: thumbnail ? 4 : 10, height: thumbnail ? 4 : 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: thumbnail ? 4 : 12, fontWeight: 600, color: 'var(--text-pri)' }}>{b.label}</div>
+                      {b.desc && <div style={{ fontSize: thumbnail ? 3 : 10, color: 'var(--text-sec)' }}>{b.desc}</div>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
           {marketContent.footnote && <p className="market-footnote">{marketContent.footnote}</p>}
         </div>
@@ -1725,9 +1796,22 @@ function renderSlide(
               {nodes.map((n, i) => (
                 <div key={i} className="orbit-node-el" style={positionOffset[n.position || 'top'] || { top: `${20 + i * 20}%`, left: `${10 + i * 15}%` }}>
                   <div className="orbit-bubble-el" style={{ color: n.color || '#E11F7B', borderColor: n.color || '#E11F7B', background: n.bgColor || 'rgba(225,31,123,0.12)' }}>
-                    {n.initial}
+                    {editMode ? (
+                      <EditableField as="span" value={n.initial || ''} fieldId={`nodes.${i}.initial`}
+                        onSave={v => onFieldSave?.(`nodes.${i}.initial`, v)}
+                        selected={selectedFieldId === `nodes.${i}.initial`}
+                        editMode={editMode} onDoubleClick={() => onFieldSelect?.(`nodes.${i}.initial`)}
+                        placeholder="A" style={{ color: 'inherit' }} />
+                    ) : n.initial}
                   </div>
-                  <div className="orbit-label-el">{n.label}</div>
+                  {editMode ? (
+                    <EditableField as="div" className="orbit-label-el" value={n.label || ''}
+                      fieldId={`nodes.${i}.label`}
+                      onSave={v => onFieldSave?.(`nodes.${i}.label`, v)}
+                      selected={selectedFieldId === `nodes.${i}.label`}
+                      editMode={editMode} onDoubleClick={() => onFieldSelect?.(`nodes.${i}.label`)}
+                      placeholder="Label..." />
+                  ) : <div className="orbit-label-el">{n.label}</div>}
                 </div>
               ))}
             </div>
@@ -1739,8 +1823,22 @@ function renderSlide(
                 <div key={i} className="step-el">
                   <div className="step-num-el">{s.num || i + 1}</div>
                   <div>
-                    {s.title && <div className="step-title-el">{s.title}</div>}
-                    {s.desc && <div className="step-desc-el">{s.desc}</div>}
+                    {editMode ? (
+                      <EditableField as="div" className="step-title-el" value={s.title || ''}
+                        fieldId={`steps.${i}.title`}
+                        onSave={v => onFieldSave?.(`steps.${i}.title`, v)}
+                        selected={selectedFieldId === `steps.${i}.title`}
+                        editMode={editMode} onDoubleClick={() => onFieldSelect?.(`steps.${i}.title`)}
+                        placeholder="Étape..." />
+                    ) : s.title ? <div className="step-title-el">{s.title}</div> : null}
+                    {editMode ? (
+                      <EditableField as="div" className="step-desc-el" value={s.desc || ''}
+                        fieldId={`steps.${i}.desc`}
+                        onSave={v => onFieldSave?.(`steps.${i}.desc`, v)}
+                        selected={selectedFieldId === `steps.${i}.desc`}
+                        editMode={editMode} multiline onDoubleClick={() => onFieldSelect?.(`steps.${i}.desc`)}
+                        placeholder="Description..." />
+                    ) : s.desc ? <div className="step-desc-el">{s.desc}</div> : null}
                   </div>
                 </div>
               ))}
@@ -1781,8 +1879,24 @@ function renderSlide(
             <div className="mockup-cards-grid">
               {cards.map((c, i) => (
                 <div key={i} className="mockup-task-card">
-                  <div className="mockup-status-tag" style={{ background: `${c.statusColor || '#E11F7B'}22`, color: c.statusColor || '#E11F7B' }}>{c.status}</div>
-                  <div className="mockup-task-name">{c.title}</div>
+                  {editMode ? (
+                    <EditableField as="div" className="mockup-status-tag" value={c.status || ''}
+                      fieldId={`cards.${i}.status`} onSave={v => onFieldSave?.(`cards.${i}.status`, v)}
+                      selected={selectedFieldId === `cards.${i}.status`} editMode={editMode}
+                      onDoubleClick={() => onFieldSelect?.(`cards.${i}.status`)}
+                      style={{ background: `${c.statusColor || '#E11F7B'}22`, color: c.statusColor || '#E11F7B' }}
+                      placeholder="Status..." />
+                  ) : (
+                    <div className="mockup-status-tag" style={{ background: `${c.statusColor || '#E11F7B'}22`, color: c.statusColor || '#E11F7B' }}>{c.status}</div>
+                  )}
+                  {editMode ? (
+                    <EditableField as="div" className="mockup-task-name" value={c.title || ''}
+                      fieldId={`cards.${i}.title`} onSave={v => onFieldSave?.(`cards.${i}.title`, v)}
+                      selected={selectedFieldId === `cards.${i}.title`} editMode={editMode}
+                      onDoubleClick={() => onFieldSelect?.(`cards.${i}.title`)} placeholder="Tâche..." />
+                  ) : (
+                    <div className="mockup-task-name">{c.title}</div>
+                  )}
                   <div className="mockup-progress-bar">
                     <div className="mockup-progress-fill" style={{ width: `${c.progress || 0}%`, background: c.statusColor || '#E11F7B' }} />
                   </div>
@@ -1793,7 +1907,14 @@ function renderSlide(
               {agents.map((a, i) => (
                 <div key={i} className="mockup-agent-pill">
                   <div className="mockup-agent-status-dot" style={{ background: a.color || '#E11F7B', animation: a.blink ? 'blink 2s ease-in-out infinite' : 'none' }} />
-                  <span className="mockup-agent-name-text">{a.name}</span>
+                  {editMode ? (
+                    <EditableField as="span" className="mockup-agent-name-text" value={a.name || ''}
+                      fieldId={`agents.${i}.name`} onSave={v => onFieldSave?.(`agents.${i}.name`, v)}
+                      selected={selectedFieldId === `agents.${i}.name`} editMode={editMode}
+                      onDoubleClick={() => onFieldSelect?.(`agents.${i}.name`)} placeholder="Agent..." />
+                  ) : (
+                    <span className="mockup-agent-name-text">{a.name}</span>
+                  )}
                 </div>
               ))}
               {mockupContent.agentCount && <span style={{ fontSize: 9, color: 'var(--text-sec)', marginLeft: 'auto' }}>{mockupContent.agentCount}</span>}

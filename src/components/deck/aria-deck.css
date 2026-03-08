@@ -608,12 +608,17 @@
 .feature-card:nth-child(4)::before { background: linear-gradient(90deg, var(--accent-secondary, #7C3AED), transparent); }
 
 /* ── DB-10 P0-2 — Thumbnail safe : orbit-visual height overflow ────────────── */
+/* TK-0078 — orbit thumbnail overflow fixes */
 [data-thumbnail="true"] .orbit-visual {
   height: 80px !important;
+  max-height: 80px !important;
   min-height: unset;
 }
 [data-thumbnail="true"] .orbit-ring-el {
-  display: none;
+  display: none !important;
+}
+[data-thumbnail="true"] .orbit-node-el {
+  display: none !important;
 }
 [data-thumbnail="true"] .orbit-center-el {
   width: 32px;
@@ -1560,4 +1565,37 @@
     animation: none;
     background-size: 100% 2px;
   }
+}
+
+/* ═══════════════════════════════════════════
+   TK-0083 — Thumbnail: disable animations on all animated elements
+   ═══════════════════════════════════════════ */
+
+[data-thumbnail="true"] .tpl-stat-card,
+[data-thumbnail="true"] .feature-card,
+[data-thumbnail="true"] .pricing-card-wrap,
+[data-thumbnail="true"] .team-card,
+[data-thumbnail="true"] .roadmap-phase,
+[data-thumbnail="true"] [data-current="true"],
+[data-thumbnail="true"] .orbit-center-el {
+  animation: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* ═══════════════════════════════════════════
+   TK-0094 — Orbit: animation flottante sur les nodes
+   ═══════════════════════════════════════════ */
+
+@keyframes orbit-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+.orbit-node-el:nth-child(odd)  { animation: orbit-float 3s ease-in-out infinite; }
+.orbit-node-el:nth-child(even) { animation: orbit-float 3s ease-in-out 1.5s infinite; }
+
+[data-thumbnail="true"] .orbit-node-el {
+  animation: none !important;
 }
