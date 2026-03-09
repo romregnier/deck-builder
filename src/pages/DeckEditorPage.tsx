@@ -12,10 +12,27 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ChevronLeft, ChevronRight, Plus, Maximize2, Eye, Globe, EyeOff,
-  RefreshCw, ArrowUp, ArrowDown, Trash2, Download, Loader2, LayoutTemplate, X, Sparkles,
+  ChevronLeft, ChevronRight, ChevronDown, Plus, Maximize2, Eye, Globe, EyeOff,
+  RefreshCw, ArrowUp, ArrowDown, Trash2, Download, Loader2, LayoutTemplate, X,
   Image as ImageIcon, BarChart2,
 } from 'lucide-react'
+// ── DB-33 — DnD imports ───────────────────────────────────────────────────────
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { supabase } from '../lib/supabase'
 import { SlideRenderer } from '../components/deck/SlideRenderer'
 import { AnimatedBackground } from '../components/deck/AnimatedBackground'
@@ -151,6 +168,71 @@ function parseThemeJSON(deck: DeckData | null): DeckThemeJSON {
 // ── DB-16 — SlideField supprimé : les champs texte sont désormais éditables inline sur le canvas ──
 // Le PropsPanel ne contient plus que des contrôles de styling (layout, fond, image, items structurels)
 
+// ── DB-36 — AccordionSection ──────────────────────────────────────────────────
+
+interface AccordionSectionProps {
+  id: string
+  label: string
+  isOpen: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}
+
+function AccordionSection({ id, label, isOpen, onToggle, children }: AccordionSectionProps) {
+  return (
+    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: 0 }}>
+      <button
+        onClick={onToggle}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 0',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          fontFamily: 'Poppins, sans-serif',
+        }}
+      >
+        <span style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: isOpen ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.35)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.07em',
+          transition: 'color 0.15s',
+        }}>
+          {label}
+        </span>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          style={{ color: isOpen ? '#E11F7B' : 'rgba(255,255,255,0.3)', display: 'flex' }}
+        >
+          <ChevronDown size={14} />
+        </motion.div>
+      </button>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            key={id}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ paddingBottom: 12 }}>
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 // ── TK-0120 — Emoji picker : liste d'emojis courants pour les feature cards ──
 const FEATURE_EMOJIS = [
   '✨','🔥','⚡','🚀','💡','🎯','🌟','💎','🔐','📊',
@@ -170,6 +252,7 @@ function PropsPanel({
   onUpdate,
   onRegenerate,
   onChangeType,
+  onUpdateTheme,
 }: {
   slide: SlideData
   deckTitle: string
@@ -178,10 +261,29 @@ function PropsPanel({
   onUpdate: (content: SlideContent) => void
   onRegenerate: () => void
   onChangeType?: (newType: SlideType) => void
+  onUpdateTheme: (updates: Partial<DeckThemeJSON>) => Promise<void>
 }) {
   const [regenerating, setRegenerating] = useState(false)
   // TK-0120 — Index de la feature card dont le picker d'emoji est ouvert
   const [emojiPickerIndex, setEmojiPickerIndex] = useState<number | null>(null)
+  // DB-47 — Tab Props/Style
+  const [propsPanelTab, setPropsPanelTab] = useState<'props' | 'style'>('props')
+  // DB-36 — Accordion sections
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['content']))
+  // Reset tab + accordion on slide change
+  useEffect(() => {
+    setPropsPanelTab('props')
+    setOpenSections(new Set(['content']))
+  }, [slide.id])
+
+  function toggleSection(id: string) {
+    setOpenSections(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
   const content = slide.content
 
   const fieldStyle: React.CSSProperties = {
@@ -224,10 +326,52 @@ function PropsPanel({
   const SlideType = slide.type
 
   return (
-    <div style={{ padding: 16 }}>
+    <div>
+      {/* DB-47 — Tabs Props | Style */}
+      <div style={{
+        display: 'flex',
+        gap: 4,
+        padding: '8px 16px 0',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+      }}>
+        {(['props', 'style'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setPropsPanelTab(tab)}
+            style={{
+              flex: 1,
+              padding: '7px 0',
+              borderRadius: '8px 8px 0 0',
+              border: propsPanelTab === tab
+                ? '1px solid rgba(225,31,123,0.5)'
+                : '1px solid transparent',
+              borderBottom: 'none',
+              background: propsPanelTab === tab
+                ? 'rgba(225,31,123,0.15)'
+                : 'transparent',
+              color: propsPanelTab === tab
+                ? '#E11F7B'
+                : 'rgba(255,255,255,0.4)',
+              fontSize: 12,
+              fontWeight: 600,
+              fontFamily: 'Poppins, sans-serif',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            {tab === 'props' ? 'Props' : 'Style'}
+          </button>
+        ))}
+      </div>
+
+      {propsPanelTab === 'style' ? (
+        <StylePanelInline themeJSON={themeJSON} onUpdate={onUpdateTheme} />
+      ) : (
+      <div style={{ overflowY: 'auto' }}>
+      <div style={{ padding: 16 }}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 16, paddingBottom: 12,
+        marginBottom: 12, paddingBottom: 10,
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
         <span style={{
@@ -253,24 +397,15 @@ function PropsPanel({
         </button>
       </div>
 
-      {/* TK-0110 — Type selector */}
-      {onChangeType && (
-        <div style={{ marginBottom: 16 }}>
-          <label style={fieldLabel}>Type de slide</label>
-          <select
-            value={SlideType}
-            onChange={e => onChangeType(e.target.value as SlideType)}
-            style={{ ...fieldStyle, cursor: 'pointer' }}
-          >
-            {(['hero','content','stats','quote','cta','chart','timeline','comparison','features','pricing','team','roadmap','market','orbit','mockup'] as const).map(t => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-      )}
+      {/* DB-36 — Accordion Contenu */}
+      <AccordionSection id="content" label="Contenu" isOpen={openSections.has('content')} onToggle={() => toggleSection('content')}>
 
-      {/* DB-16 — Champs texte supprimés : édition inline sur le canvas */}
-      {/* Garder uniquement les contrôles structurels (ajouter/supprimer items) */}
+      {/* DB-16 — Types sans contrôles structurels → édition directe sur le canvas */}
+      {!['content','stats','chart','timeline','comparison','features','pricing','team','roadmap','market','orbit','mockup','cta','hero'].includes(SlideType) && (
+        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '8px 0', fontFamily: 'Poppins, sans-serif' }}>
+          ✏️ Édition directe sur le canvas
+        </p>
+      )}
 
       {(SlideType === 'content') && (
         <div style={{ marginBottom: 12 }}>
@@ -1067,6 +1202,27 @@ function PropsPanel({
         </div>
       )}
 
+      </AccordionSection>
+
+      {/* DB-36 — Accordion Style */}
+      <AccordionSection id="style" label="Style" isOpen={openSections.has('style')} onToggle={() => toggleSection('style')}>
+
+      {/* TK-0110 — Type selector */}
+      {onChangeType && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>Type de slide</label>
+          <select
+            value={SlideType}
+            onChange={e => onChangeType(e.target.value as SlideType)}
+            style={{ ...fieldStyle, cursor: 'pointer' }}
+          >
+            {(['hero','content','stats','quote','cta','chart','timeline','comparison','features','pricing','team','roadmap','market','orbit','mockup'] as const).map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* ── Layout Variants ─────────────────────────────────────────────── */}
       {(['hero', 'content', 'stats'] as const).includes(SlideType as 'hero' | 'content' | 'stats') && (() => {
         // FIX B — Keys alignées avec sélecteurs CSS aria-deck.css
@@ -1253,6 +1409,29 @@ function PropsPanel({
           JPG, PNG, WebP · max 3 Mo
         </span>
       </div>
+
+      </AccordionSection>
+
+      {/* DB-36 — Accordion Options */}
+      <AccordionSection id="options" label="Options" isOpen={openSections.has('options')} onToggle={() => toggleSection('options')}>
+        {SlideType === 'pricing' ? (
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', padding: '4px 0', fontFamily: 'Poppins, sans-serif' }}>
+            Les toggles <strong>Featured</strong> sont disponibles dans chaque offre (section Contenu).
+          </p>
+        ) : SlideType === 'roadmap' ? (
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', padding: '4px 0', fontFamily: 'Poppins, sans-serif' }}>
+            Le statut et les icônes sont configurables dans chaque phase (section Contenu).
+          </p>
+        ) : (
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', padding: '4px 0', fontFamily: 'Poppins, sans-serif' }}>
+            Aucune option pour ce type.
+          </p>
+        )}
+      </AccordionSection>
+
+    </div>
+    </div>
+    )}
     </div>
   )
 }
@@ -1383,6 +1562,48 @@ const iconBtnStyle: React.CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'center',
 }
 
+// ── DB-33 — SortableSlideThumbnail ────────────────────────────────────────────
+
+interface SlideThumbnailProps {
+  slide: SlideData
+  theme: DeckTheme
+  themeJSON?: DeckThemeJSON
+  index: number
+  active: boolean
+  onClick: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
+  onDelete: () => void
+  onDuplicate: () => void
+  isFirst: boolean
+  isLast: boolean
+}
+
+function SortableSlideThumbnail(props: SlideThumbnailProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.slide.id })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition ?? 'transform 200ms ease',
+    opacity: isDragging ? 0.4 : 1,
+    cursor: isDragging ? 'grabbing' : 'grab',
+    touchAction: 'none',
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <SlideThumbnail {...props} />
+    </div>
+  )
+}
+
 // ── DeckEditorPage ────────────────────────────────────────────────────────────
 
 // TK-0112 — Slide type presets
@@ -1416,7 +1637,6 @@ export function DeckEditorPage() {
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleValue, setTitleValue] = useState('')
   const [showSaveTemplate, setShowSaveTemplate] = useState(false)
-  const [showStylePanel, setShowStylePanel] = useState(false)
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   // DB-27 — Delete modal + countdown
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -1440,6 +1660,12 @@ export function DeckEditorPage() {
   const MAX_UNDO = 20
   // ── Inline edit state ──────────────────────────────────────────────────────
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
+
+  // ── DB-33 — DnD sensors ────────────────────────────────────────────────────
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  )
 
   const theme = getTheme(deck)
   const themeJSON = parseThemeJSON(deck)
@@ -1789,6 +2015,28 @@ export function DeckEditorPage() {
     ])
   }
 
+  // ── DB-33 — handleDragEnd ──────────────────────────────────────────────────
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = slides.findIndex(s => s.id === active.id)
+    const newIndex = slides.findIndex(s => s.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = arrayMove(slides, oldIndex, newIndex)
+    reordered.forEach((s, i) => { s.position = i + 1 })
+    setSlides(reordered)
+    if (activeIdx === oldIndex) setActiveIdx(newIndex)
+    else if (activeIdx > oldIndex && activeIdx <= newIndex) setActiveIdx(activeIdx - 1)
+    else if (activeIdx < oldIndex && activeIdx >= newIndex) setActiveIdx(activeIdx + 1)
+
+    // Batch save to Supabase
+    await Promise.all(
+      reordered.map(s => supabase.from('slides').update({ position: s.position }).eq('id', s.id))
+    )
+  }
+
   async function deleteSlide(idx: number) {
     if (slides.length <= 1) return
     const slide = slides[idx]
@@ -2021,25 +2269,6 @@ export function DeckEditorPage() {
             {activeIdx + 1} / {slides.length}
           </span>
 
-          {/* Style panel */}
-          <button
-            onClick={() => setShowStylePanel(v => !v)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '6px 12px', borderRadius: 7,
-              border: showStylePanel ? '1px solid rgba(225,31,123,0.5)' : '1px solid rgba(255,255,255,0.12)',
-              background: showStylePanel ? 'rgba(225,31,123,0.12)' : 'rgba(255,255,255,0.05)',
-              color: showStylePanel ? '#E11F7B' : 'rgba(255,255,255,0.5)',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              fontFamily: 'Poppins, sans-serif',
-              transition: 'all 0.15s',
-            }}
-            title="Style visuel"
-          >
-            <Sparkles size={13} />
-            Style
-          </button>
-
           {/* Template swap */}
           <button
             onClick={() => setShowTemplateModal(true)}
@@ -2156,16 +2385,18 @@ export function DeckEditorPage() {
 
       {/* ── Slides panel ────────────────────────────────────────────────────── */}
       <div className={`deck-slides${mobileTab === 'slides' ? ' mobile-active' : ''}`}>
-        <AnimatePresence>
-          {slides.map((slide, i) => (
-            <motion.div
-              key={slide.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.15 }}
-            >
-              <SlideThumbnail
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={slides.map(s => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {slides.map((slide, i) => (
+              <SortableSlideThumbnail
+                key={slide.id}
                 slide={slide}
                 theme={theme}
                 themeJSON={themeJSON}
@@ -2179,9 +2410,9 @@ export function DeckEditorPage() {
                 isFirst={i === 0}
                 isLast={i === slides.length - 1}
               />
-            </motion.div>
-          ))}
-        </AnimatePresence>
+            ))}
+          </SortableContext>
+        </DndContext>
 
         <button
           onClick={() => setShowAddSlideModal(true)}
@@ -2334,6 +2565,7 @@ export function DeckEditorPage() {
             onUpdate={updateSlideContent}
             onRegenerate={() => { /* trigger refresh */ }}
             onChangeType={updateSlideType}
+            onUpdateTheme={updateThemeJSON}
           />
         ) : (
           <div style={{ padding: 16, color: 'rgba(255,255,255,0.2)', fontSize: 13 }}>
@@ -2341,17 +2573,6 @@ export function DeckEditorPage() {
           </div>
         )}
       </div>
-
-      {/* ── Style Panel ─────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showStylePanel && (
-          <StylePanel
-            themeJSON={themeJSON}
-            onUpdate={updateThemeJSON}
-            onClose={() => setShowStylePanel(false)}
-          />
-        )}
-      </AnimatePresence>
 
       {/* ── Save Template Modal ──────────────────────────────────────────────── */}
       <AnimatePresence>
@@ -2688,16 +2909,15 @@ const DA_PRESETS = [
   },
 ]
 
-// ── StylePanel ────────────────────────────────────────────────────────────────
 
-function StylePanel({
+// ── DB-47 — StylePanelInline ──────────────────────────────────────────────────
+
+function StylePanelInline({
   themeJSON,
   onUpdate,
-  onClose,
 }: {
   themeJSON: DeckThemeJSON
   onUpdate: (updates: Partial<DeckThemeJSON>) => Promise<void>
-  onClose: () => void
 }) {
   const sectionTitle: React.CSSProperties = {
     fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.35)',
@@ -2735,35 +2955,12 @@ function StylePanel({
   })
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      transition={{ duration: 0.2 }}
-      style={{
-        position: 'fixed', top: 56, right: 280, zIndex: 300,
-        background: '#1E1B21', border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 14, padding: '16px 18px', width: 260,
-        fontFamily: 'Poppins, sans-serif', boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
-        maxHeight: 'calc(100vh - 72px)', overflowY: 'auto',
-      }}
-    >
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <Sparkles size={14} color="#E11F7B" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#F5F0F7' }}>Style visuel</span>
-        </div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: 2 }}>
-          <X size={14} />
-        </button>
-      </div>
+    <div style={{ padding: '12px 16px', fontFamily: 'Poppins, sans-serif', overflowY: 'auto', maxHeight: 'calc(100vh - 160px)' }}>
 
       {/* DB-08 — Directions artistiques */}
       <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <p style={{ ...sectionTitle, marginTop: 4 }}>Direction artistique</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {/* Bouton reset DA — DB-19 : remet les vraies valeurs Orion Dark */}
           <button
             onClick={() => onUpdate({
               da: undefined,
@@ -2814,7 +3011,7 @@ function StylePanel({
         </div>
       </div>
 
-      {/* FIX I3 — Sélecteur de langue */}
+      {/* Langue */}
       <p style={sectionTitle}>Langue</p>
       <div style={{ display: 'flex', gap: 6 }}>
         {(['Français', 'English'] as const).map(lang => (
@@ -2828,7 +3025,7 @@ function StylePanel({
         ))}
       </div>
 
-      {/* FIX H3 — Sélecteur de police */}
+      {/* Police */}
       <p style={sectionTitle}>Police</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
         {(['Poppins', 'Inter', 'DM Sans', 'Space Grotesk', 'Syne'] as const).map(font => (
@@ -2861,9 +3058,7 @@ function StylePanel({
                 accentGradient: `linear-gradient(135deg, ${c}, #7C3AED)`,
               }).then(() => {})
             }}
-            style={{
-              opacity: 0, position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: 'pointer',
-            }}
+            style={{ opacity: 0, position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: 'pointer' }}
           />
         </div>
         <span style={hexLabel}>{themeJSON.accentColor || '#E11F7B'}</span>
@@ -2891,7 +3086,6 @@ function StylePanel({
           <button
             onClick={() => onUpdate({ gradientText: !themeJSON.gradientText }).then(() => {})}
             style={toggleStyle(themeJSON.gradientText !== false)}
-            title="Toggle gradient text"
           >
             <div style={{
               position: 'absolute', top: 3, width: 16, height: 16, borderRadius: '50%', background: '#fff',
@@ -2905,7 +3099,6 @@ function StylePanel({
           <button
             onClick={() => onUpdate({ glowEffect: !themeJSON.glowEffect }).then(() => {})}
             style={toggleStyle(themeJSON.glowEffect !== false)}
-            title="Toggle glow"
           >
             <div style={{
               position: 'absolute', top: 3, width: 16, height: 16, borderRadius: '50%', background: '#fff',
@@ -2944,7 +3137,7 @@ function StylePanel({
         ))}
       </div>
 
-      {/* ── Sprint 3 — Accent secondaire ──────────────────────────────── */}
+      {/* Accent secondaire */}
       <p style={sectionTitle}>Accent secondaire</p>
       <div style={colorRow}>
         <div style={{ ...colorSwatch, background: themeJSON.secondaryAccent || '#7C3AED' }}>
@@ -2964,7 +3157,7 @@ function StylePanel({
         </button>
       </div>
 
-      {/* ── Sprint 3 — Couleur texte ───────────────────────────────────── */}
+      {/* Couleur texte */}
       <p style={sectionTitle}>Couleur texte</p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 4 }}>
         <div>
@@ -2993,7 +3186,6 @@ function StylePanel({
             </div>
             <button
               onClick={() => onUpdate({ textSecondary: themeJSON.textSecondary === 'auto' ? undefined : 'auto' }).then(() => {})}
-              title="Auto = 50% du texte principal"
               style={{
                 padding: '0 6px', height: 28, borderRadius: 6, fontSize: 10, cursor: 'pointer',
                 background: themeJSON.textSecondary === 'auto' ? '#E11F7B' : 'rgba(255,255,255,0.06)',
@@ -3004,13 +3196,12 @@ function StylePanel({
         </div>
       </div>
 
-      {/* ── Sprint 3 — Grain texture ───────────────────────────────────── */}
+      {/* Grain texture */}
       <p style={sectionTitle}>Texture</p>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <button
           onClick={() => onUpdate({ noiseEnabled: !themeJSON.noiseEnabled }).then(() => {})}
           style={toggleStyle(!!themeJSON.noiseEnabled)}
-          title="Toggle grain texture"
         >
           <div style={{
             position: 'absolute', top: 3, width: 16, height: 16, borderRadius: '50%', background: '#fff',
@@ -3032,7 +3223,7 @@ function StylePanel({
         </div>
       )}
 
-      {/* ── Sprint 3 — Stagger animation ──────────────────────────────── */}
+      {/* Décalage animation */}
       <p style={sectionTitle}>Décalage animation</p>
       <div style={{ display: 'flex', gap: 4 }}>
         {([0, 50, 100, 200] as const).map(val => (
@@ -3052,7 +3243,7 @@ function StylePanel({
         ))}
       </div>
 
-      {/* ── Sprint 4 — Fond animé ─────────────────────────────────────── */}
+      {/* Fond animé */}
       <p style={sectionTitle}>Fond animé</p>
       {(() => {
         const BG_OPTIONS: Array<{ id: BgType; label: string; emoji: string; desc: string }> = [
@@ -3090,7 +3281,7 @@ function StylePanel({
           </div>
         )
       })()}
-    </motion.div>
+    </div>
   )
 }
 
