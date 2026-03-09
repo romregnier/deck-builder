@@ -768,8 +768,9 @@ function PropsPanel({
       {(SlideType === 'market') && (
         <div style={{ marginBottom: 12 }}>
           <label style={fieldLabel}>Cercles ({((content as any).bars || []).length}/3 max)</label>
-          {((content as any).bars || []).map((b: { label?: string; color?: string }, i: number) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+          {((content as any).bars || []).map((b: { label?: string; color?: string; width?: number }, i: number) => (
+            <div key={i} style={{ padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
                 type="color"
                 value={b.color || (['#E11F7B', '#7C3AED', '#00d4ff'][i] || '#E11F7B')}
@@ -791,6 +792,21 @@ function PropsPanel({
                 }}
                 style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
               >×</button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', fontFamily: 'Poppins, sans-serif', minWidth: 32 }}>Taille</span>
+                <input
+                  type="range" min={10} max={100} step={1}
+                  value={b.width ?? [100, 65, 35][i] ?? 50}
+                  onChange={e => {
+                    const bars = [...((content as any).bars || [])]
+                    bars[i] = { ...bars[i], width: Number(e.target.value) }
+                    onUpdate({ ...content, bars } as SlideContent)
+                  }}
+                  style={{ flex: 1, accentColor: b.color || '#E11F7B' }}
+                />
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', fontFamily: 'Poppins, sans-serif', minWidth: 24, textAlign: 'right' }}>{b.width ?? [100, 65, 35][i] ?? 50}%</span>
+              </div>
             </div>
           ))}
           {((content as any).bars || []).length < 3 && (

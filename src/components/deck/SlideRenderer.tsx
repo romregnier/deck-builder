@@ -327,10 +327,10 @@ function renderSlide(
   const fsize = themeJSON?.fontSize || 'md'
 
   // Font size multipliers
-  const heroTitleSize = fsize === 'xl' ? 'clamp(52px, 6.5cqw, 92px)'
-    : fsize === 'lg' ? 'clamp(46px, 5.8cqw, 82px)'
-    : fsize === 'sm' ? 'clamp(32px, 4cqw, 56px)'
-    : 'clamp(40px, 5cqw, 72px)' // md default
+  const heroTitleSize = fsize === 'xl' ? 'clamp(60px, 8cqw, 108px)'
+    : fsize === 'lg' ? 'clamp(52px, 6.5cqw, 96px)'
+    : fsize === 'sm' ? 'clamp(32px, 4.5cqw, 64px)'
+    : 'clamp(44px, 5.5cqw, 88px)' // md default
 
   const statsValSize = fsize === 'xl' ? 'clamp(40px, 5cqw, 70px)'
     : fsize === 'lg' ? 'clamp(36px, 4.5cqw, 62px)'
@@ -432,7 +432,7 @@ function renderSlide(
               onUpdateFontSize={onUpdateFontSize}
               style={{
                 fontSize: _fontSizes?.['title'] ? `${_fontSizes['title']}rem` : (heroLayout === 'fullbleed' ? 'clamp(48px, 7.5cqw, 108px)' : heroTitleSize),
-                fontWeight: 800,
+                fontWeight: 900,
                 letterSpacing: '-0.03em',
                 lineHeight: 1.05,
                 position: 'relative', zIndex: 1,
@@ -445,7 +445,7 @@ function renderSlide(
               className="tpl-hero__title"
               style={{
                 fontSize: _fontSizes?.['title'] ? `${_fontSizes['title']}rem` : (heroLayout === 'fullbleed' ? 'clamp(48px, 7.5cqw, 108px)' : heroTitleSize),
-                fontWeight: 800,
+                fontWeight: 900,
                 letterSpacing: '-0.03em',
                 lineHeight: 1.05,
                 position: 'relative', zIndex: 1,
@@ -514,14 +514,14 @@ function renderSlide(
               {editMode ? (
                 <>
                   <EditableField as="div" className="tpl-hero__eyebrow" value={content.eyebrow || ''} fieldId="eyebrow" onSave={v => onFieldSave?.('eyebrow', v)} selected={selectedFieldId === 'eyebrow'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('eyebrow')} placeholder="Eyebrow..." />
-                  <EditableField as="h1" className="tpl-hero__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: heroTitleSize, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.05, ...gradientTextStyle }} placeholder="Titre..." />
+                  <EditableField as="h1" className="tpl-hero__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: heroTitleSize, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.05, ...gradientTextStyle }} placeholder="Titre..." />
                   <EditableField as="p" className="tpl-hero__sub" value={content.subtitle || ''} fieldId="subtitle" onSave={v => onFieldSave?.('subtitle', v)} selected={selectedFieldId === 'subtitle'} editMode={editMode} multiline onDoubleClick={() => onFieldSelect?.('subtitle')} placeholder="Sous-titre..." />
                 </>
               ) : (
                 <>
                   {content.eyebrow && <div className="tpl-hero__eyebrow">{content.eyebrow}</div>}
                   {content.title && (
-                    <h1 className="tpl-hero__title" style={{ fontSize: heroTitleSize, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.05, ...gradientTextStyle }}>
+                    <h1 className="tpl-hero__title" style={{ fontSize: heroTitleSize, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.05, ...gradientTextStyle }}>
                       {content.title}
                     </h1>
                   )}
@@ -1982,72 +1982,56 @@ function renderSlide(
           ) : marketContent.title ? (
             <h2 className="tpl-market__title" style={gradientText ? gradientTextStyle : {}}>{marketContent.title}</h2>
           ) : null}
-          {/* TK-0089 — Cercles concentriques TAM/SAM/SOM */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 32, flex: 1, marginTop: 20 }}>
-            <div style={{ position: 'relative', width: thumbnail ? 100 : 200, height: thumbnail ? 100 : 200, flexShrink: 0 }}>
-              <svg width={thumbnail ? 100 : 200} height={thumbnail ? 100 : 200} viewBox="0 0 200 200">
-                {bars.slice(0, 3).map((_b, i) => {
-                  const radii = [90, 65, 40]
-                  const circleColors = [bars[0]?.color || '#E11F7B', bars[1]?.color || '#7C3AED', bars[2]?.color || '#00d4ff']
-                  return (
-                    <circle key={i} cx="100" cy="100" r={radii[i]}
-                      fill={`${circleColors[i]}18`}
-                      stroke={circleColors[i]}
-                      strokeWidth={thumbnail ? 1 : 2} />
-                  )
-                })}
-              </svg>
-              {bars.slice(0, 3).map((b, i) => {
-                const labelPositions: React.CSSProperties[] = [
-                  { top: '5%', left: '50%', transform: 'translateX(-50%)' },
-                  { top: '28%', left: '50%', transform: 'translateX(-50%)' },
-                  { top: '50%', left: '50%', transform: 'translateX(-50%)' },
-                ]
-                const circleColors = [bars[0]?.color || '#E11F7B', bars[1]?.color || '#7C3AED', bars[2]?.color || '#00d4ff']
-                return (
-                  <div key={i} style={{ position: 'absolute', textAlign: 'center', ...labelPositions[i] }}>
-                    {editMode ? (
-                      <EditableField as="div" value={b.label || ''} fieldId={`bars.${i}.label`}
-                        onSave={v => onFieldSave?.(`bars.${i}.label`, v)}
-                        selected={selectedFieldId === `bars.${i}.label`} editMode={editMode}
-                        onDoubleClick={() => onFieldSelect?.(`bars.${i}.label`)}
-                        style={{ fontSize: thumbnail ? 5 : 11, fontWeight: 700, color: circleColors[i] }}
-                        placeholder="Label..." />
-                    ) : <div style={{ fontSize: thumbnail ? 5 : 11, fontWeight: 700, color: circleColors[i] }}>{b.label}</div>}
-                    {editMode ? (
-                      <EditableField as="div" value={b.value || ''} fieldId={`bars.${i}.value`}
-                        onSave={v => onFieldSave?.(`bars.${i}.value`, v)}
-                        selected={selectedFieldId === `bars.${i}.value`} editMode={editMode}
-                        onDoubleClick={() => onFieldSelect?.(`bars.${i}.value`)}
-                        style={{ fontSize: thumbnail ? 4 : 10, color: 'var(--text-sec)' }}
-                        placeholder="$X M" />
-                    ) : <div style={{ fontSize: thumbnail ? 4 : 10, color: 'var(--text-sec)' }}>{b.value}</div>}
-                  </div>
-                )
-              })}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: thumbnail ? 4 : 12 }}>
-              {bars.map((b, i) => {
-                const legendColors = [bars[0]?.color || '#E11F7B', bars[1]?.color || '#7C3AED', bars[2]?.color || '#00d4ff']
-                const color = b.color || legendColors[i] || '#E11F7B'
-                return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: thumbnail ? 4 : 10, height: thumbnail ? 4 : 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                    <div>
-                      <div style={{ fontSize: thumbnail ? 4 : 12, fontWeight: 600, color: 'var(--text-pri)' }}>{b.label}</div>
+          {/* TK-0149 — Barres horizontales TAM/SAM/SOM */}
+          <div className="market-bars">
+            {bars.map((b, i) => {
+              const colors = ['#E11F7B', '#7C3AED', '#00d4ff']
+              const widths = [100, 65, 35]
+              const color = b.color || colors[i] || '#E11F7B'
+              const width = b.width || widths[i] || 50
+              return (
+                <div key={i} className="market-bar-row">
+                  {editMode ? (
+                    <EditableField as="div" className="market-bar-label"
+                      value={b.label || ''}
+                      fieldId={`bars.${i}.label`}
+                      onSave={v => onFieldSave?.(`bars.${i}.label`, v)}
+                      selected={selectedFieldId === `bars.${i}.label`}
+                      editMode={editMode}
+                      onDoubleClick={() => onFieldSelect?.(`bars.${i}.label`)}
+                      style={{ color }} placeholder="TAM..." />
+                  ) : <div className="market-bar-label" style={{ color }}>{b.label}</div>}
+                  <div className="market-bar-track">
+                    <div className="market-bar-fill" style={{
+                      width: `${width}%`,
+                      background: `linear-gradient(90deg, ${color}33, ${color}88)`,
+                      transition: thumbnail ? 'none' : 'width 1s ease',
+                    }}>
                       {editMode ? (
-                        <EditableField as="div" value={b.desc || ''} fieldId={`bars.${i}.desc`}
+                        <EditableField as="span" value={b.desc || ''}
+                          fieldId={`bars.${i}.desc`}
                           onSave={v => onFieldSave?.(`bars.${i}.desc`, v)}
                           selected={selectedFieldId === `bars.${i}.desc`}
-                          editMode={editMode} onDoubleClick={() => onFieldSelect?.(`bars.${i}.desc`)}
-                          style={{ fontSize: thumbnail ? 3 : 10, color: 'var(--text-sec)' }}
+                          editMode={editMode}
+                          onDoubleClick={() => onFieldSelect?.(`bars.${i}.desc`)}
+                          style={{ fontSize: thumbnail ? 6 : 12, color: 'rgba(255,255,255,0.8)' }}
                           placeholder="Description..." />
-                      ) : (b.desc && <div style={{ fontSize: thumbnail ? 3 : 10, color: 'var(--text-sec)' }}>{b.desc}</div>)}
+                      ) : (b.desc && <span style={{ fontSize: thumbnail ? 6 : 12, color: 'rgba(255,255,255,0.8)' }}>{b.desc}</span>)}
                     </div>
                   </div>
-                )
-              })}
-            </div>
+                  {editMode ? (
+                    <EditableField as="div" className="market-bar-value"
+                      value={b.value || ''}
+                      fieldId={`bars.${i}.value`}
+                      onSave={v => onFieldSave?.(`bars.${i}.value`, v)}
+                      selected={selectedFieldId === `bars.${i}.value`}
+                      editMode={editMode}
+                      onDoubleClick={() => onFieldSelect?.(`bars.${i}.value`)}
+                      style={{ color, fontSize: thumbnail ? 7 : 13 }} placeholder="$1T" />
+                  ) : <div className="market-bar-value" style={{ color, fontSize: thumbnail ? 7 : 13 }}>{b.value}</div>}
+                </div>
+              )
+            })}
           </div>
           {(editMode || marketContent.footnote) && (
             editMode ? (
