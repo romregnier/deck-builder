@@ -48,7 +48,7 @@ async function fetchURLContent(url: string): Promise<string> {
       'X-Return-Format': 'text',
     },
   })
-  if (!res.ok) throw new Error(`Impossible de charger la page (${res.status})`)
+  if (!res.ok) throw new Error(`Impossible d'analyser cette URL. Vérifiez qu'elle est accessible publiquement. (${res.status})`)
   const text = await res.text()
   if (!text || text.length < 100) throw new Error('Contenu trop court ou page inaccessible')
   // Tronquer à 8000 chars pour ne pas dépasser la fenêtre Gemini

@@ -132,8 +132,25 @@ function StepBrief({
     setDaApplied(true)
   }
 
+  function isValidUrl(input: string): boolean {
+    try {
+      const trimmed = input.trim()
+      if (!trimmed) return false
+      const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+      new URL(normalized)
+      return true
+    } catch {
+      return false
+    }
+  }
+
   async function handleAnalyzeURL() {
     if (!urlInput.trim()) return
+    // Validation client-side : évite l'appel Jina si l'URL est clairement invalide
+    if (!isValidUrl(urlInput)) {
+      setUrlError("❌ Impossible d'analyser cette URL. Vérifiez qu'elle est accessible publiquement.")
+      return
+    }
     setUrlAnalyzing(true)
     setUrlError(null)
     setUrlResult(null)
@@ -141,8 +158,8 @@ function StepBrief({
     try {
       const result = await analyzeURL(urlInput)
       setUrlResult(result)
-    } catch (err) {
-      setUrlError(err instanceof Error ? err.message : "Erreur lors de l'analyse")
+    } catch {
+      setUrlError("❌ Impossible d'analyser cette URL. Vérifiez qu'elle est accessible publiquement.")
     }
     setUrlAnalyzing(false)
   }
@@ -386,7 +403,7 @@ function StepBrief({
             type="url"
             value={urlInput}
             onChange={e => { setUrlInput(e.target.value); setUrlResult(null); setUrlError(null); setUrlApplied(false) }}
-            onKeyDown={e => e.key === 'Enter' && !urlAnalyzing && void handleAnalyzeURL()}
+            onKeyDown={e => e.key === 'Enter' && !urlAnalyzing && isValidUrl(urlInput) && void handleAnalyzeURL()}
             placeholder="https://monsite.com ou monsite.com"
             style={{
               flex: 1, padding: '9px 12px', borderRadius: 8, fontSize: 12,
@@ -397,14 +414,14 @@ function StepBrief({
           />
           <button
             onClick={() => void handleAnalyzeURL()}
-            disabled={!urlInput.trim() || urlAnalyzing}
+            disabled={!urlInput.trim() || urlAnalyzing || !isValidUrl(urlInput)}
             style={{
               padding: '9px 16px', borderRadius: 8, border: 'none', flexShrink: 0,
-              background: urlInput.trim() && !urlAnalyzing
+              background: urlInput.trim() && !urlAnalyzing && isValidUrl(urlInput)
                 ? 'linear-gradient(135deg, #38BDF8, #0EA5E9)'
                 : 'rgba(255,255,255,0.06)',
-              color: urlInput.trim() && !urlAnalyzing ? '#fff' : 'rgba(255,255,255,0.2)',
-              fontSize: 12, fontWeight: 700, cursor: urlInput.trim() && !urlAnalyzing ? 'pointer' : 'not-allowed',
+              color: urlInput.trim() && !urlAnalyzing && isValidUrl(urlInput) ? '#fff' : 'rgba(255,255,255,0.2)',
+              fontSize: 12, fontWeight: 700, cursor: urlInput.trim() && !urlAnalyzing && isValidUrl(urlInput) ? 'pointer' : 'not-allowed',
               fontFamily: 'Poppins, sans-serif',
               display: 'flex', alignItems: 'center', gap: 6,
             }}
