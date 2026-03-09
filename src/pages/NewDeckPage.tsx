@@ -10,9 +10,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Sparkles, Check, ArrowUp, ArrowDown, Trash2, Plus, Loader2, Paperclip, MessageSquare } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Sparkles, Check, ArrowUp, ArrowDown, Trash2, Plus, Loader2, Paperclip, MessageSquare, Globe } from 'lucide-react'
 import { generateDeck, generateOutline, type GenerationProgress, type SlideOutline } from '../lib/deckGenerator'
 import { extractDAFromPDF, extractFullPresentation, type ExtractedDA, type ExtractedSlide } from '../lib/pdfAnalyzer'
+import { analyzeURL, type URLAnalysisResult } from '../lib/urlAnalyzer'
 import { importDeck } from '../lib/deckGenerator'
 import { supabase } from '../lib/supabase'
 import type { DeckBrief, DeckAudience, DeckTonality, DeckTheme, DeckLang, SlideType, DeckTemplate } from '../types/deck'
@@ -82,10 +83,12 @@ function StepBrief({
   data,
   onChange,
   onImport,
+  onUrlImport,
 }: {
   data: Partial<DeckBrief>
   onChange: (partial: Partial<DeckBrief>) => void
   onImport?: (slides: ExtractedSlide[], da: ExtractedDA) => void
+  onUrlImport?: (result: URLAnalysisResult) => void
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pdfFile, setPdfFile] = useState<File | null>(null)
@@ -94,6 +97,13 @@ function StepBrief({
   const [extractedDA, setExtractedDA] = useState<ExtractedDA | null>(null)
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [daApplied, setDaApplied] = useState(false)
+
+  // ── URL states ──
+  const [urlInput, setUrlInput] = useState('')
+  const [urlAnalyzing, setUrlAnalyzing] = useState(false)
+  const [urlResult, setUrlResult] = useState<URLAnalysisResult | null>(null)
+  const [urlError, setUrlError] = useState<string | null>(null)
+  const [urlApplied, setUrlApplied] = useState(false)
 
   async function handleAnalyzePDF() {
     if (!pdfFile) return
@@ -120,6 +130,34 @@ function StepBrief({
     if (!extractedDA) return
     onChange({ theme: extractedDA.theme, accentColor: extractedDA.primaryColor })
     setDaApplied(true)
+  }
+
+  async function handleAnalyzeURL() {
+    if (!urlInput.trim()) return
+    setUrlAnalyzing(true)
+    setUrlError(null)
+    setUrlResult(null)
+    setUrlApplied(false)
+    try {
+      const result = await analyzeURL(urlInput)
+      setUrlResult(result)
+    } catch (err) {
+      setUrlError(err instanceof Error ? err.message : "Erreur lors de l'analyse")
+    }
+    setUrlAnalyzing(false)
+  }
+
+  function handleApplyURL() {
+    if (!urlResult) return
+    onChange({
+      title: urlResult.title,
+      description: urlResult.description,
+      audience: urlResult.audience,
+      tonality: urlResult.tonality,
+      theme: urlResult.theme,
+    })
+    onUrlImport?.(urlResult)
+    setUrlApplied(true)
   }
 
   return (
@@ -318,6 +356,133 @@ function StepBrief({
           <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', margin: 0 }}>
             Gemini analyse ton PDF et extrait automatiquement la charte graphique.
           </p>
+        )}
+      </div>
+
+      {/* ── URL Import section ── */}
+      <div style={{
+        borderRadius: 12,
+        border: '1px solid rgba(56, 189, 248, 0.2)',
+        background: 'rgba(56, 189, 248, 0.04)',
+        padding: 16,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Globe size={14} color="#38BDF8" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#38BDF8' }}>
+            Générer depuis une URL
+          </span>
+        </div>
+
+        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', margin: 0, lineHeight: 1.5 }}>
+          Colle une URL (site, landing page, article, fiche produit…) et Gemini analysera la page pour créer ta présentation automatiquement.
+        </p>
+
+        {/* Input + bouton */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="url"
+            value={urlInput}
+            onChange={e => { setUrlInput(e.target.value); setUrlResult(null); setUrlError(null); setUrlApplied(false) }}
+            onKeyDown={e => e.key === 'Enter' && !urlAnalyzing && void handleAnalyzeURL()}
+            placeholder="https://monsite.com ou monsite.com"
+            style={{
+              flex: 1, padding: '9px 12px', borderRadius: 8, fontSize: 12,
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'rgba(255,255,255,0.05)',
+              color: '#F5F0F7', fontFamily: 'Poppins, sans-serif', outline: 'none',
+            }}
+          />
+          <button
+            onClick={() => void handleAnalyzeURL()}
+            disabled={!urlInput.trim() || urlAnalyzing}
+            style={{
+              padding: '9px 16px', borderRadius: 8, border: 'none', flexShrink: 0,
+              background: urlInput.trim() && !urlAnalyzing
+                ? 'linear-gradient(135deg, #38BDF8, #0EA5E9)'
+                : 'rgba(255,255,255,0.06)',
+              color: urlInput.trim() && !urlAnalyzing ? '#fff' : 'rgba(255,255,255,0.2)',
+              fontSize: 12, fontWeight: 700, cursor: urlInput.trim() && !urlAnalyzing ? 'pointer' : 'not-allowed',
+              fontFamily: 'Poppins, sans-serif',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            {urlAnalyzing
+              ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Analyse…</>
+              : <><Sparkles size={13} /> Analyser</>
+            }
+          </button>
+        </div>
+
+        {/* Error */}
+        {urlError && (
+          <div style={{ fontSize: 12, color: '#FCA5A5', padding: '8px 10px', borderRadius: 6, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            ⚠️ {urlError}
+          </div>
+        )}
+
+        {/* Résultat */}
+        {urlResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(255,255,255,0.04)', padding: 12,
+              display: 'flex', flexDirection: 'column', gap: 10,
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#38BDF8' }}>
+              ✅ Page analysée{urlResult.companyName ? ` — ${urlResult.companyName}` : ''}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5, fontStyle: 'italic' }}>
+              "{urlResult.rawSummary}"
+            </div>
+
+            {/* Infos extraites */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'rgba(56,189,248,0.15)', color: '#38BDF8' }}>
+                {urlResult.suggestedSlideCount} slides
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
+                {urlResult.audience}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
+                {urlResult.tonality}
+              </span>
+            </div>
+
+            {/* Key facts */}
+            {urlResult.keyFacts.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {urlResult.keyFacts.slice(0, 3).map((fact, i) => (
+                  <div key={i} style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', display: 'flex', gap: 6 }}>
+                    <span style={{ color: '#38BDF8' }}>•</span>
+                    {fact}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Bouton appliquer */}
+            {urlApplied ? (
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#10B981' }}>✅ Formulaire pré-rempli !</div>
+            ) : (
+              <button
+                onClick={handleApplyURL}
+                style={{
+                  alignSelf: 'flex-start', padding: '8px 16px', borderRadius: 8, border: 'none',
+                  background: 'linear-gradient(135deg, #38BDF8, #0EA5E9)',
+                  color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  fontFamily: 'Poppins, sans-serif',
+                }}
+              >
+                Utiliser cette analyse →
+              </button>
+            )}
+          </motion.div>
         )}
       </div>
     </div>
@@ -1150,6 +1315,18 @@ export function NewDeckPage() {
     }
   }
 
+  function handleUrlImport(result: URLAnalysisResult) {
+    const suggestedOutline: SlideOutline[] = result.suggestedOutline.map(s => ({
+      type: s.type,
+      title: s.title,
+      customPrompt: s.hint || undefined,
+    }))
+    if (suggestedOutline.length > 0) {
+      setOutline(suggestedOutline)
+      setBrief(prev => ({ ...prev, slideCount: suggestedOutline.length }))
+    }
+  }
+
   async function handleImportFromPDF(slides: ExtractedSlide[], da: ExtractedDA) {
     setIsGenerating(true)
     setError(null)
@@ -1387,7 +1564,7 @@ export function NewDeckPage() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
             >
-              {step === 0 && <StepBrief data={brief} onChange={updateBrief} onImport={handleImportFromPDF} />}
+              {step === 0 && <StepBrief data={brief} onChange={updateBrief} onImport={handleImportFromPDF} onUrlImport={handleUrlImport} />}
               {step === 1 && (
                 <>
                   <TemplateSelectorBlock

@@ -36,6 +36,8 @@ import { CSS } from '@dnd-kit/utilities'
 import { supabase } from '../lib/supabase'
 import { SlideRenderer } from '../components/deck/SlideRenderer'
 import { AnimatedBackground } from '../components/deck/AnimatedBackground'
+import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal'
+import { DeckEditorSkeleton } from '../components/DeckEditorSkeleton'
 import { regenerateSlide } from '../lib/deckGenerator'
 import { publishDeck, generateHTMLForExport } from '../lib/deckPublisher'
 import type { SlideJSON, DeckTheme, SlideContent, DeckThemeJSON, SlideTransition, FontSize, SlideBackground, SlideType } from '../types/deck'
@@ -1651,12 +1653,19 @@ export function DeckEditorPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateRecord | null>(null)
   const [previousThemeJson, setPreviousThemeJson] = useState<string | null>(null)
   const [undoToast, setUndoToast] = useState(false)
+  const [deleteToast, setDeleteToast] = useState(false)
   const [mobileTab, setMobileTab] = useState<'slides' | 'canvas' | 'props'>('canvas')
   const [showAddSlideModal, setShowAddSlideModal] = useState(false)
+  // DB-45 — Cheat sheet modal
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
+  // DB-46 — Toggle Edit / Preview
+  const [previewMode, setPreviewMode] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // TK-0118 — Undo/Redo stacks
   const undoStackRef = useRef<Array<{ slideId: string; content: SlideContent }[]>>([])
   const redoStackRef = useRef<Array<{ slideId: string; content: SlideContent }[]>>([])
+  // DB-44 — Undo delete slide
+  const deletedSlideRef = useRef<{ slide: SlideData; idx: number } | null>(null)
   const MAX_UNDO = 20
   // ── Inline edit state ──────────────────────────────────────────────────────
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
@@ -1690,10 +1699,22 @@ export function DeckEditorPage() {
   // TK-0117 + TK-0118 — Raccourcis clavier : nav slides + suppr + escape + undo/redo
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      // Escape — déselectionne le champ en édition
+      // Escape — ferme la cheat sheet, quitte le preview, ou désélectionne
       if (e.key === 'Escape') {
+        if (showShortcutsModal) { setShowShortcutsModal(false); return }
+        if (previewMode) { setPreviewMode(false); return }
         setSelectedFieldId(null)
         return
+      }
+
+      // DB-45 — '?' ouvre la cheat sheet (sauf si modal déjà ouverte ou focus dans un input)
+      if (e.key === '?' && !showShortcutsModal) {
+        const target = e.target as HTMLElement
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
+          e.preventDefault()
+          setShowShortcutsModal(true)
+          return
+        }
       }
 
       // Ctrl+Z — Undo (AVANT le guard tagName pour fonctionner même en édition inline)
@@ -1743,7 +1764,7 @@ export function DeckEditorPage() {
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [slides, activeIdx]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [slides, activeIdx, showShortcutsModal, previewMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // DB-27 — Countdown pour la modale de suppression
   useEffect(() => {
@@ -1823,6 +1844,20 @@ export function DeckEditorPage() {
 
   // TK-0118 — Undo
   function handleUndo() {
+    // DB-44 — Priorité 1 : undo d'une suppression de slide
+    if (deletedSlideRef.current) {
+      const { slide, idx } = deletedSlideRef.current
+      deletedSlideRef.current = null
+      const restored = [...slides]
+      restored.splice(idx, 0, slide)
+      restored.forEach((s, i) => { s.position = i + 1 })
+      setSlides(restored)
+      setActiveIdx(idx)
+      supabase.from('slides')
+        .upsert({ id: slide.id, deck_id: slide.deck_id, position: slide.position, type: slide.type, content_json: slide.content })
+        .then(() => {})
+      return
+    }
     if (undoStackRef.current.length === 0) return
     const currentSnapshot = slides.map(s => ({ slideId: s.id, content: s.content }))
     redoStackRef.current = [...redoStackRef.current, currentSnapshot]
@@ -2040,11 +2075,16 @@ export function DeckEditorPage() {
   async function deleteSlide(idx: number) {
     if (slides.length <= 1) return
     const slide = slides[idx]
+    // DB-44 — Sauvegarder pour undo
+    deletedSlideRef.current = { slide, idx }
     await supabase.from('slides').delete().eq('id', slide.id)
     const updated = slides.filter((_, i) => i !== idx)
     updated.forEach((s, i) => { s.position = i + 1 })
     setSlides(updated)
     setActiveIdx(Math.min(activeIdx, updated.length - 1))
+    // DB-44 — Toast "Slide supprimée — Ctrl+Z pour annuler"
+    setDeleteToast(true)
+    setTimeout(() => setDeleteToast(false), 3000)
   }
 
   async function duplicateSlide(idx: number) {
@@ -2171,19 +2211,9 @@ export function DeckEditorPage() {
     setUndoToast(false)
   }
 
+  // DB-50 — Skeleton loading
   if (loading) {
-    return (
-      <div style={{
-        minHeight: '100vh', background: '#0B090D',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#F5F0F7', fontFamily: 'Poppins, sans-serif',
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>✨</div>
-          <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14 }}>Chargement de l&apos;éditeur...</p>
-        </div>
-      </div>
-    )
+    return <DeckEditorSkeleton />
   }
 
   return (
@@ -2305,6 +2335,34 @@ export function DeckEditorPage() {
             {exporting ? 'Export...' : 'PDF'}
           </button>
 
+          {/* DB-46 — Toggle Edit / Preview */}
+          <button
+            onClick={() => setPreviewMode(v => !v)}
+            title={previewMode ? 'Repasser en mode édition' : 'Aperçu sans contrôles'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 12px',
+              borderRadius: 7,
+              border: previewMode
+                ? '1px solid rgba(225,31,123,0.5)'
+                : '1px solid rgba(255,255,255,0.12)',
+              background: previewMode
+                ? 'rgba(225,31,123,0.15)'
+                : 'rgba(255,255,255,0.05)',
+              color: previewMode ? '#E11F7B' : 'rgba(255,255,255,0.5)',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'Poppins, sans-serif',
+              transition: 'all 0.15s',
+            }}
+          >
+            {previewMode ? <EyeOff size={13} /> : <Eye size={13} />}
+            {previewMode ? 'Éditer' : 'Preview'}
+          </button>
+
           <button
             onClick={() => navigate(`/decks/${id}/present`)}
             style={topbarBtnStyle(false)}
@@ -2383,8 +2441,8 @@ export function DeckEditorPage() {
         </div>
       </div>
 
-      {/* ── Slides panel ────────────────────────────────────────────────────── */}
-      <div className={`deck-slides${mobileTab === 'slides' ? ' mobile-active' : ''}`}>
+      {/* ── Slides panel (DB-46 : caché en preview) ─────────────────────────── */}
+      <div className={`deck-slides${mobileTab === 'slides' ? ' mobile-active' : ''}`} style={{ display: previewMode ? 'none' : undefined }}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -2474,12 +2532,14 @@ export function DeckEditorPage() {
       <div className={`deck-canvas-zone${mobileTab !== 'canvas' ? ' mobile-canvas-hidden' : ''}`}>
         {activeSlide ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: '100%', height: '100%' }}>
-            {/* Inline edit hint */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', marginBottom: 0 }}>
-              <span style={{ fontSize: 11, color: 'rgba(225,31,123,0.55)' }}>
-                ✏️ Cliquez sur un champ pour éditer • Escape pour désélectionner
-              </span>
-            </div>
+            {/* Inline edit hint (DB-46 : caché en preview) */}
+            {!previewMode && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', marginBottom: 0 }}>
+                <span style={{ fontSize: 11, color: 'rgba(225,31,123,0.55)' }}>
+                  ✏️ Cliquez sur un champ pour éditer • Escape pour désélectionner
+                </span>
+              </div>
+            )}
             <div
               className="deck-slide-canvas"
               style={{ position: 'relative', overflow: 'hidden' }}
@@ -2500,19 +2560,20 @@ export function DeckEditorPage() {
                   transition={{ duration: 0.2 }}
                   style={{ width: '100%', height: '100%', position: 'relative', zIndex: 1 }}
                 >
+                  {/* DB-46 : editMode=false en preview masque les contrôles */}
                   <SlideRenderer
                     slide={activeSlide}
                     theme={theme}
                     themeJSON={themeJSON}
-                    editMode={true}
-                    selectedFieldId={selectedFieldId}
-                    onFieldSelect={handleFieldSelect}
-                    onFieldSave={handleFieldSave}
-                    onImageClick={handleImageClick}
-                    onRemoveItem={handleRemoveItem}
-                    onAddItem={handleAddItem}
-                    onReorderItems={handleReorderItems}
-                    onUpdateFontSize={handleUpdateFontSize}
+                    editMode={!previewMode}
+                    selectedFieldId={previewMode ? null : selectedFieldId}
+                    onFieldSelect={previewMode ? undefined : handleFieldSelect}
+                    onFieldSave={previewMode ? undefined : handleFieldSave}
+                    onImageClick={previewMode ? undefined : handleImageClick}
+                    onRemoveItem={previewMode ? undefined : handleRemoveItem}
+                    onAddItem={previewMode ? undefined : handleAddItem}
+                    onReorderItems={previewMode ? undefined : handleReorderItems}
+                    onUpdateFontSize={previewMode ? undefined : handleUpdateFontSize}
                   />
                 </motion.div>
               </AnimatePresence>
@@ -2547,15 +2608,51 @@ export function DeckEditorPage() {
             </div>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>📄</div>
-            <p>Aucune slide sélectionnée</p>
+          /* DB-51 — Empty state quand le deck n'a aucune slide */
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            height: '100%', gap: 16, padding: 40,
+            background: '#0B090D', borderRadius: 12,
+            border: '1px dashed rgba(255,255,255,0.08)',
+          }}>
+            <div style={{ fontSize: 64, lineHeight: 1 }}>🎞️</div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: 20, fontWeight: 700, color: 'rgba(255,255,255,0.7)',
+                fontFamily: 'Poppins, sans-serif', marginBottom: 8,
+              }}>
+                Aucune slide
+              </div>
+              <div style={{
+                fontSize: 13, color: 'rgba(255,255,255,0.35)',
+                fontFamily: 'Poppins, sans-serif',
+              }}>
+                Ajoute ta première slide pour commencer
+              </div>
+            </div>
+            <button
+              onClick={() => setShowAddSlideModal(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 22px', borderRadius: 8, border: 'none',
+                background: '#E11F7B', color: '#fff',
+                fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'Poppins, sans-serif',
+                boxShadow: '0 4px 20px rgba(225,31,123,0.4)',
+                transition: 'opacity 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+            >
+              <Plus size={15} />
+              Ajouter une slide
+            </button>
           </div>
         )}
       </div>
 
-      {/* ── Props panel ─────────────────────────────────────────────────────── */}
-      <div className={`deck-props${mobileTab === 'props' ? ' mobile-active' : ''}`} style={{ padding: 0 }}>
+      {/* ── Props panel (DB-46 : caché en preview) ──────────────────────────── */}
+      <div className={`deck-props${mobileTab === 'props' ? ' mobile-active' : ''}`} style={{ padding: 0, display: previewMode ? 'none' : undefined }}>
         {activeSlide ? (
           <PropsPanel
             slide={activeSlide}
@@ -2622,6 +2719,23 @@ export function DeckEditorPage() {
         </div>
       )}
 
+      {/* ── DB-44 Delete Toast ───────────────────────────────────────────── */}
+      {deleteToast && (
+        <div style={{
+          position: 'fixed', bottom: 64, left: '50%', transform: 'translateX(-50%)', zIndex: 9999,
+          background: '#2C272F', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10,
+          padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12,
+          color: '#F5F0F7', fontSize: 13, fontFamily: 'Poppins, sans-serif',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+        }}>
+          🗑️ Slide supprimée — Ctrl+Z pour annuler
+          <button
+            onClick={() => setDeleteToast(false)}
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: 0, fontSize: 16 }}
+          >×</button>
+        </div>
+      )}
+
       {/* ── Mobile Bottom Nav ───────────────────────────────────────────── */}
       <nav className="mobile-bottom-nav" aria-label="Navigation mobile">
         {([
@@ -2677,6 +2791,12 @@ export function DeckEditorPage() {
           </div>
         </div>
       )}
+
+      {/* DB-45 — Cheat sheet raccourcis clavier */}
+      <KeyboardShortcutsModal
+        open={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+      />
 
       {/* DB-30 — Toasts */}
       <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 3000, display: 'flex', flexDirection: 'column', gap: 8 }}>
