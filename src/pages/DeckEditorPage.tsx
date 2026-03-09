@@ -13,7 +13,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft, ChevronRight, Plus, Maximize2, Eye, Globe, EyeOff,
-  RefreshCw, ArrowUp, ArrowDown, Trash2, Save, Download, Loader2, LayoutTemplate, X, Sparkles,
+  RefreshCw, ArrowUp, ArrowDown, Trash2, Download, Loader2, LayoutTemplate, X, Sparkles,
   Image as ImageIcon, BarChart2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -33,6 +33,7 @@ interface DeckData {
   theme_json: string | null
   status: string
   slide_count: number
+  published_url?: string | null
 }
 
 interface TemplateRecord {
@@ -278,7 +279,10 @@ function PropsPanel({
           </div>
           {(content.bullets || []).map((_, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Point {i + 1}</span>
+              {/* DB-37 — Preview 30 chars */}
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: 'Poppins, sans-serif', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {typeof _ === 'string' && _.length > 0 ? (_.length > 30 ? _.slice(0, 30) + '…' : _) : `Point ${i + 1}`}
+              </span>
               <button
                 onClick={() => {
                   const bullets = (content.bullets || []).filter((__, j) => j !== i)
@@ -368,7 +372,10 @@ function PropsPanel({
                   }}
                   style={{ width: 20, height: 20, border: 'none', borderRadius: 3, cursor: 'pointer', padding: 0, background: 'none', flexShrink: 0 }}
                 />
-                <span style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Point {i + 1}</span>
+                {/* DB-37 — Preview chart data */}
+                <span style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: 'Poppins, sans-serif', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {(() => { const d = ((content as any).data?.[i] as any); const label = d?.label; return typeof label === 'string' && label.length > 0 ? (label.length > 30 ? label.slice(0, 30) + '…' : label) : `Point ${i + 1}` })()}
+                </span>
                 <button
                   onClick={() => {
                     const data = ((content as any).data || []).filter((_: unknown, j: number) => j !== i)
@@ -533,7 +540,7 @@ function PropsPanel({
           <button
             onClick={() => onUpdate({ ...content, features: [...((content as any).features || []), { icon: '✨', title: 'Nouvelle feature', desc: 'Description' }] } as SlideContent)}
             style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
-          >+ Add feature</button>
+          >+ Ajouter</button>
         </div>
       )}
 
@@ -609,7 +616,7 @@ function PropsPanel({
           <button
             onClick={() => onUpdate({ ...content, tiers: [...((content as any).tiers || []), { name: 'Nouveau tier', price: '—', per: '/mois', desc: '', features: [], featured: false }] } as SlideContent)}
             style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
-          >+ Add plan</button>
+          >+ Tier</button>
         </div>
       )}
 
@@ -687,7 +694,7 @@ function PropsPanel({
           <button
             onClick={() => onUpdate({ ...content, members: [...((content as any).members || []), { initial: 'N', name: 'Prénom Nom', role: 'Rôle', bio: '' }] } as SlideContent)}
             style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
-          >+ Add member</button>
+          >+ Membre</button>
         </div>
       )}
 
@@ -760,7 +767,7 @@ function PropsPanel({
           <button
             onClick={() => onUpdate({ ...content, phases: [...((content as any).phases || []), { quarter: 'Q?', title: 'Nouvelle phase', items: [], status: 'planned', current: false, icon: '📌' }] } as SlideContent)}
             style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
-          >+ Add phase</button>
+          >+ Phase</button>
         </div>
       )}
 
@@ -1241,9 +1248,21 @@ function PropsPanel({
           <ImageIcon size={14} />
           {content.imageUrl ? "Changer l'image" : 'Ajouter une image'}
         </label>
+        {/* DB-38 — Hint upload */}
+        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 4, display: 'block', fontFamily: 'Poppins, sans-serif' }}>
+          JPG, PNG, WebP · max 3 Mo
+        </span>
       </div>
     </div>
   )
+}
+
+// ── DB-34 — Type badge colors ──────────────────────────────────────────────────
+const TYPE_COLORS: Record<string, string> = {
+  hero: '#E11F7B', stats: '#3B82F6', cta: '#10B981', features: '#8B5CF6',
+  pricing: '#F59E0B', team: '#06B6D4', roadmap: '#F97316', market: '#EC4899',
+  orbit: '#6366F1', mockup: '#14B8A6', content: '#94A3B8', quote: '#A78BFA',
+  chart: '#22C55E', timeline: '#EAB308', comparison: '#64748B',
 }
 
 // ── SlideThumbnail ────────────────────────────────────────────────────────────
@@ -1276,9 +1295,17 @@ function SlideThumbnail({
   isLast: boolean
 }) {
   const [hovered, setHovered] = useState(false)
+  // DB-35 — Auto-scroll vers slide active
+  const thumbRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (active && thumbRef.current) {
+      thumbRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [active])
 
   return (
     <div
+      ref={thumbRef}
       style={{ marginBottom: 8, position: 'relative' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -1291,7 +1318,14 @@ function SlideThumbnail({
         <span style={{ fontSize: 10, fontWeight: 700, color: active ? '#E11F7B' : 'rgba(255,255,255,0.25)' }}>
           {index + 1}
         </span>
-        <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase' }}>
+        {/* DB-34 — Badge type coloré */}
+        <span style={{
+          fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+          background: `${TYPE_COLORS[slide.type] || '#94A3B8'}22`,
+          color: TYPE_COLORS[slide.type] || '#94A3B8',
+          letterSpacing: '0.03em', textTransform: 'uppercase',
+          border: `1px solid ${TYPE_COLORS[slide.type] || '#94A3B8'}44`,
+        }}>
           {slide.type}
         </span>
       </div>
@@ -1377,7 +1411,6 @@ export function DeckEditorPage() {
   const [slides, setSlides] = useState<SlideData[]>([])
   const [activeIdx, setActiveIdx] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -1385,6 +1418,15 @@ export function DeckEditorPage() {
   const [showSaveTemplate, setShowSaveTemplate] = useState(false)
   const [showStylePanel, setShowStylePanel] = useState(false)
   const [showTemplateModal, setShowTemplateModal] = useState(false)
+  // DB-27 — Delete modal + countdown
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteCountdown, setDeleteCountdown] = useState(3)
+  // DB-28 — Save status indicator
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle')
+  // DB-30 — Toast notifications
+  const [toasts, setToasts] = useState<Array<{ id: string; type: 'success' | 'error' | 'warning'; message: string }>>([])
+  // DB-32 — Overflow menu
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false)
   const [templatesList, setTemplatesList] = useState<TemplateRecord[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateRecord | null>(null)
   const [previousThemeJson, setPreviousThemeJson] = useState<string | null>(null)
@@ -1460,10 +1502,37 @@ export function DeckEditorPage() {
         e.preventDefault()
         deleteSlide(activeIdx)
       }
+
+      // DB-39 — Ctrl+D dupliquer slide
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault()
+        duplicateSlide(activeIdx)
+      }
+
+      // DB-40 — Ctrl+Enter → présenter
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault()
+        navigate(`/decks/${id}/present`)
+      }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [slides, activeIdx]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // DB-27 — Countdown pour la modale de suppression
+  useEffect(() => {
+    if (!showDeleteModal) { setDeleteCountdown(3); return }
+    if (deleteCountdown <= 0) return
+    const t = setTimeout(() => setDeleteCountdown(v => v - 1), 1000)
+    return () => clearTimeout(t)
+  }, [showDeleteModal, deleteCountdown])
+
+  // DB-30 — showToast helper
+  function showToast(type: 'success' | 'error' | 'warning', message: string) {
+    const toastId = Math.random().toString(36).slice(2)
+    setToasts(t => [...t, { id: toastId, type, message }])
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== toastId)), 4000)
+  }
 
   async function fetchDeck(deckId: string) {
     setLoading(true)
@@ -1497,15 +1566,21 @@ export function DeckEditorPage() {
   // Debounced auto-save on slide update
   const autoSave = useCallback((slideId: string, content: SlideContent) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    setSaveStatus('pending')
     saveTimerRef.current = setTimeout(async () => {
-      setSaving(true)
-      await supabase
-        .from('slides')
-        .update({ content_json: content })
-        .eq('id', slideId)
-      setSaving(false)
+      setSaveStatus('saving')
+      try {
+        await supabase
+          .from('slides')
+          .update({ content_json: content })
+          .eq('id', slideId)
+        setSaveStatus('saved')
+        setTimeout(() => setSaveStatus('idle'), 5000)
+      } catch {
+        setSaveStatus('error')
+      }
     }, 1000)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function updateSlideContent(content: SlideContent) {
     if (!activeSlide) return
@@ -1794,11 +1869,12 @@ export function DeckEditorPage() {
       const url = await publishDeck(id)
       if (url) {
         window.open(url, '_blank')
-        setDeck(d => d ? { ...d, status: 'published' } : d)
+        setDeck(d => d ? { ...d, status: 'published', published_url: url } : d)
+        showToast('success', 'Deck publié avec succès !')
       }
     } catch (err) {
       console.error('[DeckEditorPage] publish error:', err)
-      alert('Erreur lors de la publication: ' + (err instanceof Error ? err.message : 'Inconnu'))
+      showToast('error', 'Erreur lors de la publication: ' + (err instanceof Error ? err.message : 'Inconnu'))
     }
     setPublishing(false)
   }
@@ -1813,7 +1889,7 @@ export function DeckEditorPage() {
 
   async function handleDelete() {
     if (!id) return
-    if (!window.confirm('Supprimer ce deck définitivement ? Cette action est irréversible.')) return
+    // DB-27 — confirmation via modale branded, pas window.confirm
     await supabase.from('slides').delete().eq('deck_id', id)
     await supabase.from('presentations').delete().eq('id', id)
     navigate('/decks')
@@ -1910,10 +1986,31 @@ export function DeckEditorPage() {
             </button>
           )}
 
-          {saving && (
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
-              <Save size={11} style={{ display: 'inline', marginRight: 4 }} />
-              Sauvegarde...
+          {/* DB-42 — Badge statut deck */}
+          {deck && (
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 99,
+              background: deck.published_url || deck.status === 'published' ? 'rgba(74,222,128,0.12)' : 'rgba(255,255,255,0.06)',
+              color: deck.published_url || deck.status === 'published' ? '#4ade80' : 'rgba(255,255,255,0.35)',
+              border: `1px solid ${deck.published_url || deck.status === 'published' ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.1)'}`,
+              fontFamily: 'Poppins, sans-serif',
+            }}>
+              {deck.published_url || deck.status === 'published' ? '● Publié' : '○ Brouillon'}
+            </span>
+          )}
+
+          {/* DB-28 — Save indicator */}
+          {saveStatus !== 'idle' && (
+            <span style={{
+              fontSize: 11, fontWeight: 600, fontFamily: 'Poppins, sans-serif',
+              display: 'flex', alignItems: 'center', gap: 4,
+              color: saveStatus === 'error' ? '#ff6b6b' : saveStatus === 'saved' ? '#4ade80' : saveStatus === 'pending' ? '#fbbf24' : 'rgba(255,255,255,0.5)',
+              transition: 'color 0.3s',
+            }}>
+              {saveStatus === 'pending' && '● Modifications non sauvegardées'}
+              {saveStatus === 'saving' && '↻ Sauvegarde...'}
+              {saveStatus === 'saved' && '✓ Sauvegardé'}
+              {saveStatus === 'error' && '⚠ Erreur de sauvegarde'}
             </span>
           )}
         </div>
@@ -1958,21 +2055,7 @@ export function DeckEditorPage() {
             🎨 Template
           </button>
 
-          {/* Save as template */}
-          <button
-            onClick={() => setShowSaveTemplate(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '6px 12px', borderRadius: 7, border: '1px solid rgba(255,255,255,0.12)',
-              background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              fontFamily: 'Poppins, sans-serif',
-            }}
-            title="Sauvegarder en template"
-          >
-            <LayoutTemplate size={13} />
-            Sauver
-          </button>
+          {/* DB-29/32 — Modèle+ déplacé dans le menu ··· */}
 
           {/* Export PDF */}
           <button
@@ -2033,14 +2116,41 @@ export function DeckEditorPage() {
             </button>
           )}
 
-          <button
-            onClick={handleDelete}
-            title="Supprimer ce deck"
-            style={{ ...topbarBtnStyle(false), color: '#EF4444', borderColor: 'rgba(239,68,68,0.2)' }}
-          >
-            <Trash2 size={13} />
-            Supprimer
-          </button>
+          {/* DB-32 — Menu ··· pour actions secondaires */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowOverflowMenu(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 16, fontFamily: 'Poppins, sans-serif' }}
+              title="Plus d'options"
+            >···</button>
+            {showOverflowMenu && (
+              <div
+                style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: '#1a1520', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: 6, minWidth: 180, zIndex: 500, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+                onMouseLeave={() => setShowOverflowMenu(false)}
+              >
+                {/* DB-29 — Modèle + */}
+                <button
+                  onClick={() => { setShowSaveTemplate(true); setShowOverflowMenu(false) }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 7, border: 'none', background: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'Poppins, sans-serif', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  title="Sauvegarder comme modèle réutilisable"
+                >
+                  <LayoutTemplate size={13} />
+                  Modèle +
+                </button>
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+                <button
+                  onClick={() => { setShowDeleteModal(true); setShowOverflowMenu(false) }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 7, border: 'none', background: 'none', color: '#ff6b6b', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'Poppins, sans-serif', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,80,80,0.08)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                >
+                  🗑 Supprimer le deck
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -2309,7 +2419,59 @@ export function DeckEditorPage() {
         ))}
       </nav>
 
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes slide-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+
+      {/* DB-27 — Modale branded suppression deck */}
+      {showDeleteModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setShowDeleteModal(false)}
+        >
+          <div
+            style={{ background: '#1a1520', border: '1px solid rgba(255,80,80,0.3)', borderRadius: 14, padding: 28, maxWidth: 380, width: '90%', textAlign: 'center' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 32, marginBottom: 12 }}>🗑</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#F5F0F7', marginBottom: 8, fontFamily: 'Poppins, sans-serif' }}>
+              Supprimer « {deck?.title || 'ce deck'} » ?
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 24, fontFamily: 'Poppins, sans-serif', lineHeight: 1.5 }}>
+              Cette action est irréversible. Toutes les slides seront supprimées définitivement.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Poppins, sans-serif' }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteCountdown > 0}
+                style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: deleteCountdown > 0 ? 'rgba(255,80,80,0.3)' : '#ff4040', color: deleteCountdown > 0 ? 'rgba(255,255,255,0.4)' : '#fff', fontSize: 13, fontWeight: 700, cursor: deleteCountdown > 0 ? 'not-allowed' : 'pointer', fontFamily: 'Poppins, sans-serif', transition: 'all 0.2s' }}
+              >
+                {deleteCountdown > 0 ? `Supprimer (${deleteCountdown}s)` : 'Supprimer définitivement'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DB-30 — Toasts */}
+      <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 3000, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {toasts.map(t => (
+          <div key={t.id} style={{
+            padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, fontFamily: 'Poppins, sans-serif',
+            background: t.type === 'success' ? 'rgba(74,222,128,0.15)' : t.type === 'error' ? 'rgba(255,107,107,0.15)' : 'rgba(251,191,36,0.15)',
+            border: `1px solid ${t.type === 'success' ? 'rgba(74,222,128,0.4)' : t.type === 'error' ? 'rgba(255,107,107,0.4)' : 'rgba(251,191,36,0.4)'}`,
+            color: t.type === 'success' ? '#4ade80' : t.type === 'error' ? '#ff6b6b' : '#fbbf24',
+            backdropFilter: 'blur(8px)', boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+            animation: 'slide-in-up 0.3s ease',
+          }}>
+            {t.type === 'success' ? '✓' : t.type === 'error' ? '⚠' : '!'} {t.message}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -2389,9 +2551,9 @@ function TemplateSwapModal({
                       transform: isSelected ? 'scale(1.02)' : 'scale(1)',
                     }}
                   >
-                    {/* Preview swatch */}
+                    {/* DB-41 — Preview swatch 90×60 */}
                     <div style={{
-                      height: 52, background: bgColor, position: 'relative', overflow: 'hidden',
+                      height: 60, minHeight: 60, background: bgColor, position: 'relative', overflow: 'hidden',
                     }}>
                       <div style={{ position: 'absolute', inset: 0, background: accentGradient === 'none' ? 'transparent' : accentGradient, opacity: 0.3 }} />
                       {isCurrent && (

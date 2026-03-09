@@ -1609,3 +1609,18 @@
 [data-thumbnail="true"] .orbit-node-el {
   animation: none !important;
 }
+
+/* ═══════════════════════════════════════════
+   DB-31 — Affordances champs éditables
+   ═══════════════════════════════════════════ */
+
+.editable-field-wrapper:not([data-thumbnail="true"]):hover,
+[data-editable="true"]:hover {
+  outline: 1px dashed rgba(225, 31, 123, 0.35);
+  outline-offset: 2px;
+  border-radius: 2px;
+  cursor: text;
+}
+.editable-field-wrapper:not([data-thumbnail="true"]):hover * {
+  cursor: text;
+}

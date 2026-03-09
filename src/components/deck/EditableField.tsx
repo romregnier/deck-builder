@@ -136,7 +136,7 @@ export function EditableField({
 
   const el = React.createElement(Tag as string, {
     ref,
-    className,
+    className: ['editable-field-wrapper', className].filter(Boolean).join(' '),
     style: editableStyle,
     onClick: handleClick,
     onBlur: handleBlur,
