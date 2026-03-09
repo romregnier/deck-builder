@@ -813,7 +813,20 @@ function renderSlide(
       return (
         <div className={`tpl-stats${statsLayoutClass}`} data-layout={slideLayout || 'default'} style={{ height: '100%' }}>
           <div className="tpl-stats__header">
-            {statsContent.eyebrow && <Eyebrow text={statsContent.eyebrow} style={{ justifyContent: 'center' }} />}
+            {editMode ? (
+            <EditableField as="div" className="tpl-eyebrow"
+              value={statsContent.eyebrow || ''}
+              fieldId="eyebrow"
+              onSave={v => onFieldSave?.('eyebrow', v)}
+              selected={selectedFieldId === 'eyebrow'}
+              editMode={editMode}
+              onDoubleClick={() => onFieldSelect?.('eyebrow')}
+              placeholder="Eyebrow..."
+              style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--accent, #E11F7B)', marginBottom: 8 }}
+            />
+          ) : statsContent.eyebrow ? (
+            <Eyebrow text={statsContent.eyebrow} style={{ justifyContent: 'center' }} />
+          ) : null}
             {editMode ? (
               <EditableField as="h2" className="tpl-stats__title" value={statsContent.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={gradientText ? gradientTextStyle : {}} placeholder="Titre..." />
             ) : statsContent.title ? (
@@ -847,7 +860,22 @@ function renderSlide(
                         )}
                         <EditableField as="div" className="tpl-stat-card__value" value={(metric as {value?: string}).value || ''} fieldId={`metrics.${i}.value`} onSave={v => onFieldSave?.(`metrics.${i}.value`, v)} selected={selectedFieldId === `metrics.${i}.value`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`metrics.${i}.value`)} onUpdateFontSize={onUpdateFontSize} style={{ fontSize: _fontSizes?.[`metrics.${i}.value`] ? `${_fontSizes[`metrics.${i}.value`]}rem` : statsValSize, fontWeight: 900, ...(metric.color ? { background: metric.color, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' } : {}), ...(thumbnail ? { animation: 'none' } : undefined) }} placeholder="0" />
                         <EditableField as="div" className="tpl-stat-card__label" value={(metric as {label?: string}).label || ''} fieldId={`metrics.${i}.label`} onSave={v => onFieldSave?.(`metrics.${i}.label`, v)} selected={selectedFieldId === `metrics.${i}.label`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`metrics.${i}.label`)} onUpdateFontSize={onUpdateFontSize} placeholder="Label..." />
-                        {(metric.desc || metric.baseline) && <div style={{ fontSize: 10, color: 'var(--text-sec)', marginTop: 6, lineHeight: 1.4, opacity: 0.8 }}>{metric.desc || metric.baseline}</div>}
+                        {editMode ? (
+                          <EditableField as="div" className="tpl-stat-card__desc"
+                            value={(metric as any).desc || (metric as any).baseline || ''}
+                            fieldId={`metrics.${i}.desc`}
+                            onSave={v => onFieldSave?.(`metrics.${i}.desc`, v)}
+                            selected={selectedFieldId === `metrics.${i}.desc`}
+                            editMode={editMode}
+                            onDoubleClick={() => onFieldSelect?.(`metrics.${i}.desc`)}
+                            placeholder="vs période précédente..."
+                            style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}
+                          />
+                        ) : ((metric as any).desc || (metric as any).baseline) ? (
+                          <div style={{ fontSize: 10, color: 'var(--text-sec)', marginTop: 6, lineHeight: 1.4, opacity: 0.8 }}>
+                            {(metric as any).desc || (metric as any).baseline}
+                          </div>
+                        ) : null}
                       </div>
                     </SortableItem>
                   ))}
@@ -910,11 +938,22 @@ function renderSlide(
                   ) : (
                     <div className="tpl-stat-card__label">{(metric as {label?: string}).label || ''}</div>
                   )}
-                  {(metric.desc || metric.baseline) && (
+                  {editMode ? (
+                    <EditableField as="div" className="tpl-stat-card__desc"
+                      value={(metric as any).desc || (metric as any).baseline || ''}
+                      fieldId={`metrics.${i}.desc`}
+                      onSave={v => onFieldSave?.(`metrics.${i}.desc`, v)}
+                      selected={selectedFieldId === `metrics.${i}.desc`}
+                      editMode={editMode}
+                      onDoubleClick={() => onFieldSelect?.(`metrics.${i}.desc`)}
+                      placeholder="vs période précédente..."
+                      style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}
+                    />
+                  ) : ((metric as any).desc || (metric as any).baseline) ? (
                     <div style={{ fontSize: 10, color: 'var(--text-sec)', marginTop: 6, lineHeight: 1.4, opacity: 0.8 }}>
-                      {metric.desc || metric.baseline}
+                      {(metric as any).desc || (metric as any).baseline}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -1009,7 +1048,20 @@ function renderSlide(
       }
       return (
         <div className="tpl-cta" data-layout={slideLayout || 'default'} style={{ height: '100%' }}>
-          {ctaContent.eyebrow && <Eyebrow text={ctaContent.eyebrow} style={{ justifyContent: 'center' }} />}
+          {editMode ? (
+            <EditableField as="div" className="tpl-eyebrow"
+              value={ctaContent.eyebrow || ''}
+              fieldId="eyebrow"
+              onSave={v => onFieldSave?.('eyebrow', v)}
+              selected={selectedFieldId === 'eyebrow'}
+              editMode={editMode}
+              onDoubleClick={() => onFieldSelect?.('eyebrow')}
+              placeholder="Eyebrow..."
+              style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--accent, #E11F7B)', marginBottom: 8 }}
+            />
+          ) : ctaContent.eyebrow ? (
+            <Eyebrow text={ctaContent.eyebrow} style={{ justifyContent: 'center' }} />
+          ) : null}
           {editMode ? (
             <EditableField
               as="h2"
@@ -1046,9 +1098,44 @@ function renderSlide(
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, width: '100%', maxWidth: '600px', marginTop: 28 }}>
               {ctaContent.allocations.map((a, i) => (
                 <div key={i} style={{ padding: 18, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', textAlign: 'center' }}>
-                  <div style={{ fontSize: 'clamp(22px, 2.8cqw, 28px)', fontWeight: 900, color: a.color || '#E11F7B' }}>{a.pct}</div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{a.title}</div>
-                  {a.desc && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{a.desc}</div>}
+                  {editMode ? (
+                    <>
+                      <EditableField as="div" value={a.pct || ''}
+                        fieldId={`allocations.${i}.pct`}
+                        onSave={v => onFieldSave?.(`allocations.${i}.pct`, v)}
+                        selected={selectedFieldId === `allocations.${i}.pct`}
+                        editMode={editMode}
+                        onDoubleClick={() => onFieldSelect?.(`allocations.${i}.pct`)}
+                        placeholder="42%"
+                        style={{ fontSize: 'clamp(22px, 2.8cqw, 28px)', fontWeight: 900, color: a.color || '#E11F7B' }}
+                      />
+                      <EditableField as="div" value={a.title || ''}
+                        fieldId={`allocations.${i}.title`}
+                        onSave={v => onFieldSave?.(`allocations.${i}.title`, v)}
+                        selected={selectedFieldId === `allocations.${i}.title`}
+                        editMode={editMode}
+                        onDoubleClick={() => onFieldSelect?.(`allocations.${i}.title`)}
+                        placeholder="Titre..."
+                        style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}
+                      />
+                      <EditableField as="div" value={a.desc || ''}
+                        fieldId={`allocations.${i}.desc`}
+                        onSave={v => onFieldSave?.(`allocations.${i}.desc`, v)}
+                        selected={selectedFieldId === `allocations.${i}.desc`}
+                        editMode={editMode}
+                        onDoubleClick={() => onFieldSelect?.(`allocations.${i}.desc`)}
+                        placeholder="Description..."
+                        multiline
+                        style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 'clamp(22px, 2.8cqw, 28px)', fontWeight: 900, color: a.color || '#E11F7B' }}>{a.pct}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{a.title}</div>
+                      {a.desc && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{a.desc}</div>}
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -1367,7 +1454,20 @@ function renderSlide(
       const featureItems = featContent.features || (content as {items?: Array<{icon?: string; title?: string; desc?: string}>}).items || []
       return (
         <div className="tpl-features">
-          {featContent.eyebrow && <Eyebrow text={featContent.eyebrow} />}
+          {editMode ? (
+            <EditableField as="div" className="tpl-eyebrow"
+              value={featContent.eyebrow || ''}
+              fieldId="eyebrow"
+              onSave={v => onFieldSave?.('eyebrow', v)}
+              selected={selectedFieldId === 'eyebrow'}
+              editMode={editMode}
+              onDoubleClick={() => onFieldSelect?.('eyebrow')}
+              placeholder="Eyebrow..."
+              style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--accent, #E11F7B)', marginBottom: 8 }}
+            />
+          ) : featContent.eyebrow ? (
+            <Eyebrow text={featContent.eyebrow} />
+          ) : null}
           {editMode ? (
             <EditableField as="h2" className="tpl-features__title" value={featContent.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={gradientText ? gradientTextStyle : {}} placeholder="Titre..." />
           ) : featContent.title ? (
@@ -1458,7 +1558,20 @@ function renderSlide(
       const tiers = pricingContent.tiers || []
       return (
         <div className="tpl-pricing">
-          {pricingContent.eyebrow && <Eyebrow text={pricingContent.eyebrow} />}
+          {editMode ? (
+            <EditableField as="div" className="tpl-eyebrow"
+              value={pricingContent.eyebrow || ''}
+              fieldId="eyebrow"
+              onSave={v => onFieldSave?.('eyebrow', v)}
+              selected={selectedFieldId === 'eyebrow'}
+              editMode={editMode}
+              onDoubleClick={() => onFieldSelect?.('eyebrow')}
+              placeholder="Eyebrow..."
+              style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--accent, #E11F7B)', marginBottom: 8 }}
+            />
+          ) : pricingContent.eyebrow ? (
+            <Eyebrow text={pricingContent.eyebrow} />
+          ) : null}
           {editMode ? (
             <EditableField as="h2" className="tpl-pricing__title" value={pricingContent.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={gradientText ? gradientTextStyle : {}} placeholder="Titre..." />
           ) : pricingContent.title ? (
@@ -1494,7 +1607,33 @@ function renderSlide(
                           <EditableField as="span" className="pricing-price-per" value={t.per || ''} fieldId={`tiers.${i}.per`} onSave={v => onFieldSave?.(`tiers.${i}.per`, v)} selected={selectedFieldId === `tiers.${i}.per`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`tiers.${i}.per`)} placeholder="/mois" />
                         </div>
                         <EditableField as="div" className="pricing-desc-text" value={t.desc || ''} fieldId={`tiers.${i}.desc`} onSave={v => onFieldSave?.(`tiers.${i}.desc`, v)} selected={selectedFieldId === `tiers.${i}.desc`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`tiers.${i}.desc`)} multiline placeholder="Description..." />
-                        <ul className="pricing-features-list">{(t.features || []).map((f, j) => <li key={j}>{f}</li>)}</ul>
+                        {(t.features || []).length > 0 && (
+                          <ul className="pricing-features-list">
+                            {(t.features || []).map((f, j) => (
+                              <li key={j} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <EditableField as="span" value={f}
+                                  fieldId={`tiers.${i}.features.${j}`}
+                                  onSave={v => onFieldSave?.(`tiers.${i}.features.${j}`, v)}
+                                  selected={selectedFieldId === `tiers.${i}.features.${j}`}
+                                  editMode={editMode}
+                                  onDoubleClick={() => onFieldSelect?.(`tiers.${i}.features.${j}`)}
+                                  style={{ flex: 1 }}
+                                  placeholder="Feature..."
+                                />
+                                {onRemoveItem && (
+                                  <button onClick={() => onRemoveItem(`tiers.${i}.features`, j)}
+                                    style={{ background: 'none', border: 'none', color: 'rgba(255,80,80,0.6)', cursor: 'pointer', fontSize: 12, padding: '0 2px', lineHeight: 1 }}>×</button>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {onAddItem && (
+                          <button onClick={() => onAddItem(`tiers.${i}.features`, 'Nouvelle feature')}
+                            style={{ fontSize: 11, background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 4, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '2px 8px', marginTop: 4, width: '100%' }}>
+                            + Feature
+                          </button>
+                        )}
                       </div>
                     </SortableItem>
                   ))}
@@ -1537,7 +1676,35 @@ function renderSlide(
                   ) : t.desc ? (
                     <div className="pricing-desc-text">{t.desc}</div>
                   ) : null}
-                  <ul className="pricing-features-list">{(t.features || []).map((f, j) => <li key={j}>{f}</li>)}</ul>
+                  {(t.features || []).length > 0 && (
+                    <ul className="pricing-features-list">
+                      {(t.features || []).map((f, j) => (
+                        <li key={j} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          {editMode ? (
+                            <EditableField as="span" value={f}
+                              fieldId={`tiers.${i}.features.${j}`}
+                              onSave={v => onFieldSave?.(`tiers.${i}.features.${j}`, v)}
+                              selected={selectedFieldId === `tiers.${i}.features.${j}`}
+                              editMode={editMode}
+                              onDoubleClick={() => onFieldSelect?.(`tiers.${i}.features.${j}`)}
+                              style={{ flex: 1 }}
+                              placeholder="Feature..."
+                            />
+                          ) : f}
+                          {editMode && onRemoveItem && (
+                            <button onClick={() => onRemoveItem(`tiers.${i}.features`, j)}
+                              style={{ background: 'none', border: 'none', color: 'rgba(255,80,80,0.6)', cursor: 'pointer', fontSize: 12, padding: '0 2px', lineHeight: 1 }}>×</button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {editMode && onAddItem && (
+                    <button onClick={() => onAddItem(`tiers.${i}.features`, 'Nouvelle feature')}
+                      style={{ fontSize: 11, background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 4, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '2px 8px', marginTop: 4, width: '100%' }}>
+                      + Feature
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -1556,12 +1723,25 @@ function renderSlide(
     case 'team': {
       const teamContent = content as {
         eyebrow?: string; title?: string; footnote?: string;
-        members?: Array<{initial?: string; name?: string; role?: string; bio?: string; color?: string; open?: boolean}>
+        members?: Array<{initial?: string; name?: string; role?: string; bio?: string; color?: string; open?: boolean; photoUrl?: string}>
       }
       const members = teamContent.members || []
       return (
         <div className="tpl-team">
-          {teamContent.eyebrow && <Eyebrow text={teamContent.eyebrow} />}
+          {editMode ? (
+            <EditableField as="div" className="tpl-eyebrow"
+              value={teamContent.eyebrow || ''}
+              fieldId="eyebrow"
+              onSave={v => onFieldSave?.('eyebrow', v)}
+              selected={selectedFieldId === 'eyebrow'}
+              editMode={editMode}
+              onDoubleClick={() => onFieldSelect?.('eyebrow')}
+              placeholder="Eyebrow..."
+              style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--accent, #E11F7B)', marginBottom: 8 }}
+            />
+          ) : teamContent.eyebrow ? (
+            <Eyebrow text={teamContent.eyebrow} />
+          ) : null}
           {editMode ? (
             <EditableField as="h2" className="tpl-team__title" value={teamContent.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={gradientText ? gradientTextStyle : {}} placeholder="Titre..." />
           ) : teamContent.title ? (
@@ -1586,9 +1766,13 @@ function renderSlide(
                     <SortableItem key={i} id={String(i)}>
                       <div className="team-card" data-open={m.open ? 'true' : 'false'} style={{ position: 'relative', flex: 1 }}>
                         {onRemoveItem && <button onClick={() => onRemoveItem('members', i)} title="Supprimer" style={{ position: 'absolute', top: 4, right: 4, background: 'none', border: 'none', color: 'rgba(255,80,80,0.7)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', opacity: 0.6, zIndex: 2 }} onMouseEnter={e => (e.currentTarget.style.opacity = '1')} onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}>×</button>}
-                        <div className="team-avatar-circle" style={{ color: m.color || '#E11F7B', borderColor: m.color || '#E11F7B', background: `${m.color || '#E11F7B'}18` }}>
-                          <EditableField as="span" value={m.initial || ''} fieldId={`members.${i}.initial`} onSave={v => onFieldSave?.(`members.${i}.initial`, v)} selected={selectedFieldId === `members.${i}.initial`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`members.${i}.initial`)} placeholder="A" />
-                        </div>
+                        {m.photoUrl ? (
+                          <img src={m.photoUrl} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${m.color || '#E11F7B'}` }} alt={m.name || ''} />
+                        ) : (
+                          <div className="team-avatar-circle" style={{ color: m.color || '#E11F7B', borderColor: m.color || '#E11F7B', background: `${m.color || '#E11F7B'}18` }}>
+                            <EditableField as="span" value={m.initial || ''} fieldId={`members.${i}.initial`} onSave={v => onFieldSave?.(`members.${i}.initial`, v)} selected={selectedFieldId === `members.${i}.initial`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`members.${i}.initial`)} placeholder="A" />
+                          </div>
+                        )}
                         <EditableField as="div" className="team-name" value={m.name || ''} fieldId={`members.${i}.name`} onSave={v => onFieldSave?.(`members.${i}.name`, v)} selected={selectedFieldId === `members.${i}.name`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`members.${i}.name`)} onUpdateFontSize={onUpdateFontSize} placeholder="Nom..." />
                         <EditableField as="div" className="team-role" value={m.role || ''} fieldId={`members.${i}.role`} onSave={v => onFieldSave?.(`members.${i}.role`, v)} selected={selectedFieldId === `members.${i}.role`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`members.${i}.role`)} onUpdateFontSize={onUpdateFontSize} placeholder="Rôle..." />
                         <EditableField as="div" className="team-bio" value={m.bio || ''} fieldId={`members.${i}.bio`} onSave={v => onFieldSave?.(`members.${i}.bio`, v)} selected={selectedFieldId === `members.${i}.bio`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`members.${i}.bio`)} multiline placeholder="Bio..." />
@@ -1612,11 +1796,15 @@ function renderSlide(
                       onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
                     >×</button>
                   )}
-                  <div className="team-avatar-circle" style={{ color: m.color || '#E11F7B', borderColor: m.color || '#E11F7B', background: `${m.color || '#E11F7B'}18` }}>
-                    {editMode ? (
-                      <EditableField as="span" value={m.initial || ''} fieldId={`members.${i}.initial`} onSave={v => onFieldSave?.(`members.${i}.initial`, v)} selected={selectedFieldId === `members.${i}.initial`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`members.${i}.initial`)} placeholder="A" />
-                    ) : m.initial}
-                  </div>
+                  {m.photoUrl ? (
+                    <img src={m.photoUrl} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${m.color || '#E11F7B'}` }} alt={m.name || ''} />
+                  ) : (
+                    <div className="team-avatar-circle" style={{ color: m.color || '#E11F7B', borderColor: m.color || '#E11F7B', background: `${m.color || '#E11F7B'}18` }}>
+                      {editMode ? (
+                        <EditableField as="span" value={m.initial || ''} fieldId={`members.${i}.initial`} onSave={v => onFieldSave?.(`members.${i}.initial`, v)} selected={selectedFieldId === `members.${i}.initial`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`members.${i}.initial`)} placeholder="A" />
+                      ) : m.initial}
+                    </div>
+                  )}
                   {editMode ? (
                     <EditableField as="div" className="team-name" value={m.name || ''} fieldId={`members.${i}.name`} onSave={v => onFieldSave?.(`members.${i}.name`, v)} selected={selectedFieldId === `members.${i}.name`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`members.${i}.name`)} onUpdateFontSize={onUpdateFontSize} placeholder="Nom..." />
                   ) : (
@@ -1643,7 +1831,23 @@ function renderSlide(
               style={_addItemBtnStyle}
             >+ Ajouter un membre</button>
           )}
-          {teamContent.footnote && <p className="team-footnote">{teamContent.footnote}</p>}
+          {(editMode || teamContent.footnote) && (
+            editMode ? (
+              <EditableField as="p" className="team-footnote"
+                value={teamContent.footnote || ''}
+                fieldId="footnote"
+                onSave={v => onFieldSave?.('footnote', v)}
+                selected={selectedFieldId === 'footnote'}
+                editMode={editMode}
+                multiline
+                onDoubleClick={() => onFieldSelect?.('footnote')}
+                style={{ fontSize: 'clamp(11px,1.2cqw,13px)', color: 'var(--text-sec)', fontStyle: 'italic' }}
+                placeholder="Note de bas de slide..."
+              />
+            ) : (
+              <p className="team-footnote">{teamContent.footnote}</p>
+            )
+          )}
         </div>
       )
     }
@@ -1657,7 +1861,20 @@ function renderSlide(
       const phases = roadmapContent.phases || []
       return (
         <div className="tpl-roadmap">
-          {roadmapContent.eyebrow && <Eyebrow text={roadmapContent.eyebrow} />}
+          {editMode ? (
+            <EditableField as="div" className="tpl-eyebrow"
+              value={roadmapContent.eyebrow || ''}
+              fieldId="eyebrow"
+              onSave={v => onFieldSave?.('eyebrow', v)}
+              selected={selectedFieldId === 'eyebrow'}
+              editMode={editMode}
+              onDoubleClick={() => onFieldSelect?.('eyebrow')}
+              placeholder="Eyebrow..."
+              style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--accent, #E11F7B)', marginBottom: 8 }}
+            />
+          ) : roadmapContent.eyebrow ? (
+            <Eyebrow text={roadmapContent.eyebrow} />
+          ) : null}
           {editMode ? (
             <EditableField as="h2" className="tpl-roadmap__title" value={roadmapContent.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={gradientText ? gradientTextStyle : {}} placeholder="Titre roadmap..." />
           ) : roadmapContent.title ? (
@@ -1693,9 +1910,34 @@ function renderSlide(
                   {editMode && (
                     <EditableField as="div" value={p.desc || ''} fieldId={`phases.${i}.desc`} onSave={v => onFieldSave?.(`phases.${i}.desc`, v)} selected={selectedFieldId === `phases.${i}.desc`} editMode={editMode} onDoubleClick={() => onFieldSelect?.(`phases.${i}.desc`)} multiline style={{ fontSize: 11, color: 'var(--text-sec)', marginTop: 4 }} placeholder="Description..." />
                   )}
-                  {!editMode && p.items && p.items.length > 0 && (
+                  {editMode ? (
+                    <>
+                      {(p.items || []).map((item, j) => (
+                        <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                          <span style={{ fontSize: 10, color: 'var(--accent)' }}>·</span>
+                          <EditableField as="div" value={item}
+                            fieldId={`phases.${i}.items.${j}`}
+                            onSave={v => onFieldSave?.(`phases.${i}.items.${j}`, v)}
+                            selected={selectedFieldId === `phases.${i}.items.${j}`}
+                            editMode={editMode}
+                            onDoubleClick={() => onFieldSelect?.(`phases.${i}.items.${j}`)}
+                            style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', flex: 1 }}
+                            placeholder="Item..."
+                          />
+                          {onRemoveItem && (
+                            <button onClick={() => onRemoveItem(`phases.${i}.items`, j)}
+                              style={{ background: 'none', border: 'none', color: 'rgba(255,80,80,0.5)', cursor: 'pointer', fontSize: 11, padding: '0 2px', lineHeight: 1 }}>×</button>
+                          )}
+                        </div>
+                      ))}
+                      {onAddItem && (
+                        <button onClick={() => onAddItem(`phases.${i}.items`, 'Nouvel item')}
+                          style={{ fontSize: 10, background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 3, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '1px 6px', marginTop: 2 }}>+ item</button>
+                      )}
+                    </>
+                  ) : p.items && p.items.length > 0 ? (
                     <div className="roadmap-items">{p.items.map((item, j) => <div key={j}>· {item}</div>)}</div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -1793,14 +2035,37 @@ function renderSlide(
                     <div style={{ width: thumbnail ? 4 : 10, height: thumbnail ? 4 : 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
                     <div>
                       <div style={{ fontSize: thumbnail ? 4 : 12, fontWeight: 600, color: 'var(--text-pri)' }}>{b.label}</div>
-                      {b.desc && <div style={{ fontSize: thumbnail ? 3 : 10, color: 'var(--text-sec)' }}>{b.desc}</div>}
+                      {editMode ? (
+                        <EditableField as="div" value={b.desc || ''} fieldId={`bars.${i}.desc`}
+                          onSave={v => onFieldSave?.(`bars.${i}.desc`, v)}
+                          selected={selectedFieldId === `bars.${i}.desc`}
+                          editMode={editMode} onDoubleClick={() => onFieldSelect?.(`bars.${i}.desc`)}
+                          style={{ fontSize: thumbnail ? 3 : 10, color: 'var(--text-sec)' }}
+                          placeholder="Description..." />
+                      ) : (b.desc && <div style={{ fontSize: thumbnail ? 3 : 10, color: 'var(--text-sec)' }}>{b.desc}</div>)}
                     </div>
                   </div>
                 )
               })}
             </div>
           </div>
-          {marketContent.footnote && <p className="market-footnote">{marketContent.footnote}</p>}
+          {(editMode || marketContent.footnote) && (
+            editMode ? (
+              <EditableField as="p" className="market-footnote"
+                value={marketContent.footnote || ''}
+                fieldId="footnote"
+                onSave={v => onFieldSave?.('footnote', v)}
+                selected={selectedFieldId === 'footnote'}
+                editMode={editMode}
+                multiline
+                onDoubleClick={() => onFieldSelect?.('footnote')}
+                style={{ fontSize: 'clamp(11px,1.2cqw,13px)', color: 'var(--text-sec)', fontStyle: 'italic' }}
+                placeholder="Note de bas de slide..."
+              />
+            ) : (
+              <p className="market-footnote">{marketContent.footnote}</p>
+            )
+          )}
         </div>
       )
     }
@@ -1923,7 +2188,20 @@ function renderSlide(
       const agents = mockupContent.agents || []
       return (
         <div className="tpl-mockup">
-          {mockupContent.eyebrow && <Eyebrow text={mockupContent.eyebrow} style={{ justifyContent: 'center' }} />}
+          {editMode ? (
+            <EditableField as="div" className="tpl-eyebrow"
+              value={mockupContent.eyebrow || ''}
+              fieldId="eyebrow"
+              onSave={v => onFieldSave?.('eyebrow', v)}
+              selected={selectedFieldId === 'eyebrow'}
+              editMode={editMode}
+              onDoubleClick={() => onFieldSelect?.('eyebrow')}
+              placeholder="Eyebrow..."
+              style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--accent, #E11F7B)', marginBottom: 8 }}
+            />
+          ) : mockupContent.eyebrow ? (
+            <Eyebrow text={mockupContent.eyebrow} style={{ justifyContent: 'center' }} />
+          ) : null}
           {editMode ? (
             <EditableField as="h2" className="tpl-mockup__title" value={mockupContent.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={gradientText ? gradientTextStyle : {}} placeholder="Titre..." />
           ) : mockupContent.title ? (

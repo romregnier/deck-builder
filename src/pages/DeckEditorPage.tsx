@@ -164,6 +164,7 @@ const FEATURE_EMOJIS = [
 function PropsPanel({
   slide,
   deckTitle,
+  deckId,
   themeJSON,
   onUpdate,
   onRegenerate,
@@ -171,6 +172,7 @@ function PropsPanel({
 }: {
   slide: SlideData
   deckTitle: string
+  deckId?: string
   themeJSON: DeckThemeJSON
   onUpdate: (content: SlideContent) => void
   onRegenerate: () => void
@@ -305,7 +307,18 @@ function PropsPanel({
           </div>
           {(content.metrics || []).map((m, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>{m.value || '—'}</span>
+              {/* TK-0138 — color picker */}
+              <input type="color"
+                value={(m as any).color || '#E11F7B'}
+                onChange={e => {
+                  const metrics = [...((content as any).metrics || [])]
+                  metrics[i] = { ...metrics[i], color: e.target.value }
+                  onUpdate({ ...content, metrics } as SlideContent)
+                }}
+                title="Couleur de la valeur"
+                style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', background: 'none', padding: 0, flexShrink: 0 }}
+              />
+              <span style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', marginLeft: 6 }}>{m.value || '—'}</span>
               <button
                 onClick={() => {
                   const metrics = (content.metrics || []).filter((__, j) => j !== i)
@@ -528,16 +541,68 @@ function PropsPanel({
       {(SlideType === 'pricing') && (
         <div style={{ marginBottom: 12 }}>
           <label style={fieldLabel}>Offres ({((content as any).tiers || []).length})</label>
-          {((content as any).tiers || []).map((_: unknown, i: number) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Tier {i + 1}</span>
+          {((content as any).tiers || []).map((t: { name?: string; features?: string[] }, i: number) => (
+            <div key={i} style={{ marginBottom: 6, padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Tier {i + 1}{t.name ? ` — ${t.name}` : ''}</span>
+                <button
+                  onClick={() => {
+                    const tiers = ((content as any).tiers || []).filter((_: unknown, j: number) => j !== i)
+                    onUpdate({ ...content, tiers } as SlideContent)
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+                >×</button>
+              </div>
+              {/* TK-0130 — Features du tier avec add/remove */}
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginBottom: 3, fontFamily: 'Poppins, sans-serif' }}>Features ({(t.features || []).length})</div>
+              {(t.features || []).map((f: string, j: number) => (
+                <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                  <span style={{ fontSize: 10, color: 'var(--accent, #E11F7B)' }}>·</span>
+                  <input
+                    type="text"
+                    value={f}
+                    onChange={e => {
+                      const tiers = [...((content as any).tiers || [])]
+                      const features = [...(tiers[i].features || [])]
+                      features[j] = e.target.value
+                      tiers[i] = { ...tiers[i], features }
+                      onUpdate({ ...content, tiers } as SlideContent)
+                    }}
+                    style={{ ...fieldStyle, flex: 1, padding: '3px 6px', fontSize: 10 }}
+                    placeholder="Feature..."
+                  />
+                  <button
+                    onClick={() => {
+                      const tiers = [...((content as any).tiers || [])]
+                      const features = (tiers[i].features || []).filter((_: string, k: number) => k !== j)
+                      tiers[i] = { ...tiers[i], features }
+                      onUpdate({ ...content, tiers } as SlideContent)
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,80,80,0.5)', cursor: 'pointer', fontSize: 12, padding: '0 2px', lineHeight: 1 }}
+                  >×</button>
+                </div>
+              ))}
               <button
                 onClick={() => {
-                  const tiers = ((content as any).tiers || []).filter((_: unknown, j: number) => j !== i)
+                  const tiers = [...((content as any).tiers || [])]
+                  tiers[i] = { ...tiers[i], features: [...(tiers[i].features || []), 'Nouvelle feature'] }
                   onUpdate({ ...content, tiers } as SlideContent)
                 }}
-                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
-              >×</button>
+                style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 3, color: 'rgba(255,255,255,0.25)', fontSize: 10, cursor: 'pointer', padding: '1px 6px', marginTop: 2, width: '100%', fontFamily: 'Poppins, sans-serif' }}
+              >+ Feature</button>
+              {/* TK-0140 — Featured toggle */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11, color: (t as any).featured ? '#E11F7B' : 'rgba(255,255,255,0.4)', marginTop: 6 }}>
+                <input type="checkbox"
+                  checked={!!(t as any).featured}
+                  onChange={e => {
+                    const tiers = [...((content as any).tiers || [])]
+                    tiers[i] = { ...tiers[i], featured: e.target.checked }
+                    onUpdate({ ...content, tiers } as SlideContent)
+                  }}
+                  style={{ accentColor: '#E11F7B' }}
+                />
+                Featured (mis en avant)
+              </label>
             </div>
           ))}
           {/* TK-0121 — Label spécifique pricing */}
@@ -552,16 +617,70 @@ function PropsPanel({
       {(SlideType === 'team') && (
         <div style={{ marginBottom: 12 }}>
           <label style={fieldLabel}>Membres ({((content as any).members || []).length})</label>
-          {((content as any).members || []).map((_: unknown, i: number) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Membre {i + 1}</span>
-              <button
-                onClick={() => {
-                  const members = ((content as any).members || []).filter((_: unknown, j: number) => j !== i)
-                  onUpdate({ ...content, members } as SlideContent)
-                }}
-                style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
-              >×</button>
+          {((content as any).members || []).map((m: { initial?: string; name?: string; photoUrl?: string }, i: number) => (
+            <div key={i} style={{ marginBottom: 4, padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Membre {i + 1}{m.name ? ` — ${m.name}` : ''}</span>
+                <button
+                  onClick={() => {
+                    const members = ((content as any).members || []).filter((_: unknown, j: number) => j !== i)
+                    onUpdate({ ...content, members } as SlideContent)
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+                >×</button>
+              </div>
+              {/* TK-0141 — color picker member */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'Poppins, sans-serif' }}>Couleur</span>
+                <input type="color"
+                  value={(m as any).color || '#E11F7B'}
+                  onChange={e => {
+                    const members = [...((content as any).members || [])]
+                    members[i] = { ...members[i], color: e.target.value }
+                    onUpdate({ ...content, members } as SlideContent)
+                  }}
+                  title="Couleur du membre"
+                  style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', background: 'none', padding: 0 }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {m.photoUrl && (
+                  <img src={m.photoUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                )}
+                <button
+                  onClick={() => {
+                    const input = document.createElement('input')
+                    input.type = 'file'
+                    input.accept = 'image/*'
+                    input.onchange = async () => {
+                      const file = input.files?.[0]
+                      if (!file) return
+                      const ext = file.name.split('.').pop() || 'jpg'
+                      const path = `team-photos/${deckId || slide.id}/${i}-${Date.now()}.${ext}`
+                      const { error } = await supabase.storage.from('deck-exports').upload(path, file, { upsert: true })
+                      if (error) { console.error('[PhotoUpload]', error); return }
+                      const { data: urlData } = supabase.storage.from('deck-exports').getPublicUrl(path)
+                      const url = urlData.publicUrl
+                      const members = [...((content as any).members || [])]
+                      members[i] = { ...members[i], photoUrl: url }
+                      onUpdate({ ...content, members } as SlideContent)
+                    }
+                    input.click()
+                  }}
+                  style={{ fontSize: 11, padding: '3px 8px', borderRadius: 5, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'Poppins, sans-serif' }}
+                >📷 Photo</button>
+                {m.photoUrl && (
+                  <button
+                    onClick={() => {
+                      const members = [...((content as any).members || [])]
+                      const { photoUrl: _, ...rest } = members[i]
+                      members[i] = rest
+                      onUpdate({ ...content, members } as SlideContent)
+                    }}
+                    style={{ fontSize: 10, padding: '3px 6px', borderRadius: 5, border: '1px solid rgba(255,100,100,0.2)', background: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', fontFamily: 'Poppins, sans-serif' }}
+                  >✕</button>
+                )}
+              </div>
             </div>
           ))}
           {/* TK-0121 — Label spécifique team */}
@@ -576,9 +695,10 @@ function PropsPanel({
       {(SlideType === 'roadmap') && (
         <div style={{ marginBottom: 12 }}>
           <label style={fieldLabel}>Phases ({((content as any).phases || []).length})</label>
-          {((content as any).phases || []).map((p: { quarter?: string; title?: string; current?: boolean; status?: string }, i: number) => {
+          {((content as any).phases || []).map((p: { quarter?: string; title?: string; current?: boolean; status?: string; icon?: string }, i: number) => {
             const STATUS_COLORS: Record<string, string> = { done: '#22C55E', 'in-progress': '#E11F7B', planned: 'rgba(255,255,255,0.3)' }
             const status = p.status || (p.current ? 'in-progress' : 'planned')
+            const ROADMAP_ICONS = ['📌', '🚀', '✅', '🔧', '💡', '🎯', '⚡', '🏁', '🌱', '💎']
             return (
               <div key={i} style={{ marginBottom: 6, padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
@@ -588,6 +708,37 @@ function PropsPanel({
                     onClick={() => { const phases = ((content as any).phases || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, phases } as SlideContent) }}
                     style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
                   >×</button>
+                </div>
+                {/* TK-0142 — color picker phase */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'Poppins, sans-serif' }}>Couleur</span>
+                  <input type="color"
+                    value={(p as any).color || '#E11F7B'}
+                    onChange={e => {
+                      const phases = [...((content as any).phases || [])]
+                      phases[i] = { ...phases[i], color: e.target.value }
+                      onUpdate({ ...content, phases } as SlideContent)
+                    }}
+                    title="Couleur de la phase"
+                    style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', background: 'none', padding: 0 }}
+                  />
+                </div>
+                {/* TK-0132 — Icon emoji picker */}
+                <div style={{ marginBottom: 4 }}>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginBottom: 2, fontFamily: 'Poppins, sans-serif' }}>Icône</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                    {ROADMAP_ICONS.map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          const phases = [...((content as any).phases || [])]
+                          phases[i] = { ...phases[i], icon: emoji }
+                          onUpdate({ ...content, phases } as SlideContent)
+                        }}
+                        style={{ background: (p.icon || '📌') === emoji ? 'rgba(225,31,123,0.2)' : 'rgba(255,255,255,0.03)', border: (p.icon || '📌') === emoji ? '1px solid rgba(225,31,123,0.4)' : '1px solid rgba(255,255,255,0.06)', borderRadius: 4, fontSize: 14, cursor: 'pointer', padding: '2px 4px', lineHeight: 1 }}
+                      >{emoji}</button>
+                    ))}
+                  </div>
                 </div>
                 <select
                   value={status}
@@ -607,7 +758,7 @@ function PropsPanel({
           })}
           {/* TK-0121 — Label spécifique roadmap */}
           <button
-            onClick={() => onUpdate({ ...content, phases: [...((content as any).phases || []), { quarter: 'Q?', title: 'Nouvelle phase', items: [], status: 'planned', current: false }] } as SlideContent)}
+            onClick={() => onUpdate({ ...content, phases: [...((content as any).phases || []), { quarter: 'Q?', title: 'Nouvelle phase', items: [], status: 'planned', current: false, icon: '📌' }] } as SlideContent)}
             style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
           >+ Add phase</button>
         </div>
@@ -663,14 +814,43 @@ function PropsPanel({
       {/* TK-0108 — Orbit : nodes + steps */}
       {(SlideType === 'orbit') && (
         <>
+          {/* TK-0143 — center.icon input */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={fieldLabel}>Icône centrale</label>
+            <input type="text"
+              value={(content as any).center?.icon || '⬡'}
+              onChange={e => onUpdate({ ...content, center: { ...((content as any).center || {}), icon: e.target.value } } as SlideContent)}
+              placeholder="⬡"
+              style={{ ...fieldStyle, width: 60 }}
+            />
+          </div>
           {/* Nodes */}
           <div style={{ marginBottom: 12 }}>
             <label style={fieldLabel}>Nodes ({((content as any).nodes || []).length})</label>
-            {((content as any).nodes || []).map((_: unknown, i: number) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Node {i + 1}</span>
-                <button onClick={() => { const nodes = ((content as any).nodes || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, nodes } as SlideContent) }}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}>×</button>
+            {((content as any).nodes || []).map((n: unknown, i: number) => (
+              <div key={i} style={{ marginBottom: 4, padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Node {i + 1}</span>
+                  <button onClick={() => { const nodes = ((content as any).nodes || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, nodes } as SlideContent) }}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}>×</button>
+                </div>
+                {/* TK-0143 — node color + bgColor pickers */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'Poppins, sans-serif' }}>Color</span>
+                  <input type="color"
+                    value={(n as any).color || '#E11F7B'}
+                    onChange={e => { const nodes = [...((content as any).nodes || [])]; nodes[i] = { ...nodes[i], color: e.target.value }; onUpdate({ ...content, nodes } as SlideContent) }}
+                    title="Couleur du node"
+                    style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', background: 'none', padding: 0 }}
+                  />
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'Poppins, sans-serif' }}>BG</span>
+                  <input type="color"
+                    value={(n as any).bgColor || '#1a0a2e'}
+                    onChange={e => { const nodes = [...((content as any).nodes || [])]; nodes[i] = { ...nodes[i], bgColor: e.target.value }; onUpdate({ ...content, nodes } as SlideContent) }}
+                    title="Couleur de fond du node"
+                    style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', background: 'none', padding: 0 }}
+                  />
+                </div>
               </div>
             ))}
             <button onClick={() => onUpdate({ ...content, nodes: [...((content as any).nodes || []), { initial: 'N', label: 'Nouveau node' }] } as SlideContent)}
@@ -702,11 +882,41 @@ function PropsPanel({
           {/* Cards */}
           <div style={{ marginBottom: 12 }}>
             <label style={fieldLabel}>Cards ({((content as any).cards || []).length})</label>
-            {((content as any).cards || []).map((_: unknown, i: number) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Card {i + 1}</span>
-                <button onClick={() => { const cards = ((content as any).cards || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, cards } as SlideContent) }}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}>×</button>
+            {((content as any).cards || []).map((c: { title?: string; progress?: number }, i: number) => (
+              <div key={i} style={{ marginBottom: 4, padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Card {i + 1}{c.title ? ` — ${c.title}` : ''}</span>
+                  <button onClick={() => { const cards = ((content as any).cards || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, cards } as SlideContent) }}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}>×</button>
+                </div>
+                {/* TK-0137 — Progress slider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'Poppins, sans-serif', flexShrink: 0 }}>Progress</span>
+                  <input type="range" min="0" max="100"
+                    value={c.progress ?? 0}
+                    onChange={e => {
+                      const cards = [...((content as any).cards || [])]
+                      cards[i] = { ...cards[i], progress: Number(e.target.value) }
+                      onUpdate({ ...content, cards } as SlideContent)
+                    }}
+                    style={{ flex: 1, accentColor: '#E11F7B' }}
+                  />
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', minWidth: 28, fontFamily: 'Poppins, sans-serif' }}>{c.progress ?? 0}%</span>
+                </div>
+                {/* TK-0144 — statusColor picker */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'Poppins, sans-serif' }}>Status color</span>
+                  <input type="color"
+                    value={(c as any).statusColor || '#6366f1'}
+                    onChange={e => {
+                      const cards = [...((content as any).cards || [])]
+                      cards[i] = { ...cards[i], statusColor: e.target.value }
+                      onUpdate({ ...content, cards } as SlideContent)
+                    }}
+                    title="Couleur du statut"
+                    style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', background: 'none', padding: 0 }}
+                  />
+                </div>
               </div>
             ))}
             <button onClick={() => onUpdate({ ...content, cards: [...((content as any).cards || []), { status: 'todo', statusColor: '#6366f1', title: 'Nouvelle tâche', progress: 0 }] } as SlideContent)}
@@ -717,11 +927,23 @@ function PropsPanel({
           {/* Agents */}
           <div style={{ marginBottom: 12 }}>
             <label style={fieldLabel}>Agents ({((content as any).agents || []).length})</label>
-            {((content as any).agents || []).map((_: unknown, i: number) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', marginBottom: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Agent {i + 1}</span>
-                <button onClick={() => { const agents = ((content as any).agents || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, agents } as SlideContent) }}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}>×</button>
+            {((content as any).agents || []).map((ag: unknown, i: number) => (
+              <div key={i} style={{ marginBottom: 4, padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Agent {i + 1}</span>
+                  <button onClick={() => { const agents = ((content as any).agents || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, agents } as SlideContent) }}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}>×</button>
+                </div>
+                {/* TK-0144 — agent color picker (dot) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'Poppins, sans-serif' }}>Couleur dot</span>
+                  <input type="color"
+                    value={(ag as any).color || '#E11F7B'}
+                    onChange={e => { const agents = [...((content as any).agents || [])]; agents[i] = { ...agents[i], color: e.target.value }; onUpdate({ ...content, agents } as SlideContent) }}
+                    title="Couleur du dot agent"
+                    style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', background: 'none', padding: 0 }}
+                  />
+                </div>
               </div>
             ))}
             <button onClick={() => onUpdate({ ...content, agents: [...((content as any).agents || []), { name: 'Nouvel agent', role: '', color: '#E11F7B' }] } as SlideContent)}
@@ -729,7 +951,83 @@ function PropsPanel({
               + Ajouter un agent
             </button>
           </div>
+          {/* TK-0145 — agentCount */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={fieldLabel}>Compteur agents (agentCount)</label>
+            <input type="text"
+              value={(content as any).agentCount || ''}
+              onChange={e => onUpdate({ ...content, agentCount: e.target.value } as SlideContent)}
+              placeholder="Ex: 12 agents actifs"
+              style={fieldStyle}
+            />
+          </div>
         </>
+      )}
+
+      {/* ── TK-0133 — CTA allocations ────────────────────────────────── */}
+      {SlideType === 'cta' && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>Allocations ({((content as any).allocations || []).length})</label>
+          {((content as any).allocations || []).map((a: { pct?: string; title?: string; desc?: string; color?: string }, i: number) => (
+            <div key={i} style={{ marginBottom: 4, padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Poppins, sans-serif' }}>Allocation {i + 1}{a.title ? ` — ${a.title}` : ''}</span>
+                <button
+                  onClick={() => {
+                    const allocations = ((content as any).allocations || []).filter((_: unknown, j: number) => j !== i)
+                    onUpdate({ ...content, allocations } as SlideContent)
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', padding: '0 4px', fontSize: 14, lineHeight: 1 }}
+                >×</button>
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <input type="text" value={a.pct || ''} onChange={e => { const allocs = [...((content as any).allocations || [])]; allocs[i] = { ...allocs[i], pct: e.target.value }; onUpdate({ ...content, allocations: allocs } as SlideContent) }} placeholder="42%" style={{ ...fieldStyle, width: 60, padding: '3px 6px', fontSize: 10 }} />
+                <input type="text" value={a.title || ''} onChange={e => { const allocs = [...((content as any).allocations || [])]; allocs[i] = { ...allocs[i], title: e.target.value }; onUpdate({ ...content, allocations: allocs } as SlideContent) }} placeholder="Titre..." style={{ ...fieldStyle, flex: 1, padding: '3px 6px', fontSize: 10 }} />
+              </div>
+              <input type="text" value={a.desc || ''} onChange={e => { const allocs = [...((content as any).allocations || [])]; allocs[i] = { ...allocs[i], desc: e.target.value }; onUpdate({ ...content, allocations: allocs } as SlideContent) }} placeholder="Description..." style={{ ...fieldStyle, padding: '3px 6px', fontSize: 10, marginTop: 3 }} />
+              {/* TK-0139 — color picker allocation */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'Poppins, sans-serif' }}>Couleur</span>
+                <input type="color"
+                  value={a.color || '#E11F7B'}
+                  onChange={e => { const allocs = [...((content as any).allocations || [])]; allocs[i] = { ...allocs[i], color: e.target.value }; onUpdate({ ...content, allocations: allocs } as SlideContent) }}
+                  title="Couleur de l'allocation"
+                  style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', background: 'none', padding: 0 }}
+                />
+              </div>
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ ...content, allocations: [...((content as any).allocations || []), { pct: '0%', title: 'Nouvelle allocation', desc: '', color: '#E11F7B' }] } as SlideContent)}
+            style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
+          >+ Allocation</button>
+        </div>
+      )}
+
+      {/* ── TK-0134 — Hero heroBadge + heroFooter ───────────────────── */}
+      {SlideType === 'hero' && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={fieldLabel}>Badge (heroBadge)</label>
+          <input
+            type="text"
+            value={(content as any).heroBadge || ''}
+            onChange={e => onUpdate({ ...content, heroBadge: e.target.value } as SlideContent)}
+            placeholder="Ex: Nouveau ✨"
+            style={{ ...fieldStyle }}
+          />
+          <label style={{ ...fieldLabel, marginTop: 8 }}>Footer badges ({((content as any).heroFooter || []).length})</label>
+          {((content as any).heroFooter || []).map((b: { icon: string; label: string }, i: number) => (
+            <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 4 }}>
+              <input type="text" value={b.icon} onChange={e => { const hf = [...((content as any).heroFooter || [])]; hf[i] = { ...hf[i], icon: e.target.value }; onUpdate({ ...content, heroFooter: hf } as SlideContent) }} placeholder="🌟" style={{ ...fieldStyle, width: 40, padding: '4px 6px' }} />
+              <input type="text" value={b.label} onChange={e => { const hf = [...((content as any).heroFooter || [])]; hf[i] = { ...hf[i], label: e.target.value }; onUpdate({ ...content, heroFooter: hf } as SlideContent) }} placeholder="Label badge..." style={{ ...fieldStyle, flex: 1, padding: '4px 6px' }} />
+              <button onClick={() => { const hf = ((content as any).heroFooter || []).filter((_: unknown, j: number) => j !== i); onUpdate({ ...content, heroFooter: hf } as SlideContent) }} style={{ background: 'none', border: 'none', color: 'rgba(255,80,80,0.5)', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}>×</button>
+            </div>
+          ))}
+          <button
+            onClick={() => onUpdate({ ...content, heroFooter: [...((content as any).heroFooter || []), { icon: '⚡', label: 'Badge' }] } as SlideContent)}
+            style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: '4px 8px', width: '100%', marginTop: 4, fontFamily: 'Poppins, sans-serif' }}
+          >+ Badge</button>
+        </div>
       )}
 
       {/* ── TK-0113 — URL du bouton CTA ──────────────────────────────── */}
@@ -1294,6 +1592,15 @@ export function DeckEditorPage() {
       const obj = (content[parts[0]] as Record<string, unknown>) || {}
       const arr = Array.isArray(obj[parts[1]]) ? obj[parts[1]] as unknown[] : []
       content[parts[0]] = { ...obj, [parts[1]]: arr.filter((_, i) => i !== index) }
+    } else if (parts.length === 3) {
+      // e.g. 'tiers.0.features' or 'phases.1.items'
+      const parentArr = Array.isArray(content[parts[0]]) ? [...(content[parts[0]] as unknown[])] : []
+      const parentIdx = parseInt(parts[1])
+      const parentObj = { ...(parentArr[parentIdx] as Record<string, unknown>) }
+      const arr = Array.isArray(parentObj[parts[2]]) ? parentObj[parts[2]] as unknown[] : []
+      parentObj[parts[2]] = arr.filter((_, i) => i !== index)
+      parentArr[parentIdx] = parentObj
+      content[parts[0]] = parentArr
     }
     updateSlideContent(content as SlideContent)
   }
@@ -1311,6 +1618,15 @@ export function DeckEditorPage() {
       const obj = (content[parts[0]] as Record<string, unknown>) || {}
       const arr = Array.isArray(obj[parts[1]]) ? [...(obj[parts[1]] as unknown[])] : []
       content[parts[0]] = { ...obj, [parts[1]]: [...arr, defaultValue] }
+    } else if (parts.length === 3) {
+      // e.g. 'tiers.0.features' or 'phases.1.items'
+      const parentArr = Array.isArray(content[parts[0]]) ? [...(content[parts[0]] as unknown[])] : []
+      const parentIdx = parseInt(parts[1])
+      const parentObj = { ...(parentArr[parentIdx] as Record<string, unknown>) }
+      const arr = Array.isArray(parentObj[parts[2]]) ? [...(parentObj[parts[2]] as unknown[])] : []
+      parentObj[parts[2]] = [...arr, defaultValue]
+      parentArr[parentIdx] = parentObj
+      content[parts[0]] = parentArr
     }
     updateSlideContent(content as SlideContent)
   }
@@ -1887,6 +2203,7 @@ export function DeckEditorPage() {
           <PropsPanel
             slide={activeSlide}
             deckTitle={deck?.title || ''}
+            deckId={deck?.id}
             themeJSON={themeJSON}
             onUpdate={updateSlideContent}
             onRegenerate={() => { /* trigger refresh */ }}
@@ -2003,21 +2320,18 @@ function TemplateSwapModal({
   })() : ''
 
   return (
-    <>
-      {/* Backdrop */}
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 500, backdropFilter: 'blur(8px)' }} />
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       {/* Modal */}
       <motion.div
+        onClick={e => e.stopPropagation()}
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.96 }}
         transition={{ duration: 0.2 }}
         style={{
-          position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-          zIndex: 501,
           background: '#1E1B21', border: '1px solid rgba(255,255,255,0.12)',
           borderRadius: 18, padding: 24, width: 'min(90vw, 640px)',
-          maxHeight: '80vh', overflow: 'auto',
+          maxHeight: '85vh', overflow: 'auto',
           fontFamily: 'Poppins, sans-serif', boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
         }}
       >
@@ -2108,7 +2422,7 @@ function TemplateSwapModal({
           </>
         )}
       </motion.div>
-    </>
+    </div>
   )
 }
 
@@ -2654,27 +2968,18 @@ function SaveTemplateModal({
   }
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-          zIndex: 200, backdropFilter: 'blur(4px)',
-        }}
-      />
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       {/* Modal */}
       <motion.div
+        onClick={e => e.stopPropagation()}
         initial={{ opacity: 0, scale: 0.95, y: -10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         style={{
-          position: 'fixed', top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 201,
           background: '#2C272F',
           border: '1px solid rgba(255,255,255,0.12)',
           borderRadius: 16, padding: 24, width: 380,
+          maxHeight: '85vh', overflow: 'auto',
           fontFamily: 'Poppins, sans-serif',
         }}
       >
@@ -2771,7 +3076,7 @@ function SaveTemplateModal({
           </div>
         )}
       </motion.div>
-    </>
+    </div>
   )
 }
 
