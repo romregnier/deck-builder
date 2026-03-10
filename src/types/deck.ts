@@ -23,7 +23,7 @@ export interface DeckThemeJSON {
   textPrimary?: string           // hex, défaut '#F5F0F7'
   textSecondary?: string         // hex ou 'auto'
   // Sprint 4 — Fonds animés
-  bgAnimation?: 'galaxy' | 'particles' | 'aurora' | 'matrix' | 'bokeh' | 'geometric' | 'waves' | 'none'
+  bgAnimation?: 'galaxy' | 'particles' | 'aurora' | 'matrix' | 'bokeh' | 'geometric' | 'waves' | 'sakura' | 'mist' | 'leaves' | 'minimal' | 'fireflies' | 'none'
   // rétrocompat : galaxyBg=true → bgAnimation='galaxy'
   galaxyBg?: boolean
   // Sprint 5 — Police + Langue

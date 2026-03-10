@@ -43,6 +43,7 @@ import { publishDeck, generateHTMLForExport } from '../lib/deckPublisher'
 import type { SlideJSON, DeckTheme, SlideContent, DeckThemeJSON, SlideTransition, FontSize, SlideBackground, SlideType } from '../types/deck'
 import type { BgType } from '../components/deck/AnimatedBackground'
 import { BACKGROUND_PRESETS } from '../types/deck'
+import { ImagePickerModal } from '../components/deck/ImagePickerModal'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1664,6 +1665,9 @@ export function DeckEditorPage() {
   const [previewMode, setPreviewMode] = useState(false)
   // Template edit mode
   const [savingTemplate, setSavingTemplate] = useState(false)
+  // Image picker modal
+  const [imagePickerField, setImagePickerField] = useState<string | null>(null)
+  const imagePickerQueryRef = useRef<string>('')
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // TK-0118 — Undo/Redo stacks
   const undoStackRef = useRef<Array<{ slideId: string; content: SlideContent }[]>>([])
@@ -2045,17 +2049,12 @@ export function DeckEditorPage() {
   }
 
   function handleImageClick(fieldId: string) {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (!file || file.size > 3 * 1024 * 1024) return
-      const reader = new FileReader()
-      reader.onload = () => handleFieldSave(fieldId, reader.result as string)
-      reader.readAsDataURL(file)
-    }
-    input.click()
+    // Générer une query contextuelle à partir du titre/contenu de la slide active
+    const slide = slides[activeIdx]
+    const content = slide?.content as Record<string, unknown> | undefined
+    const titleHint = (content?.title as string) || (content?.eyebrow as string) || deck?.title || ''
+    imagePickerQueryRef.current = titleHint.replace(/[^\w\s]/g, '').slice(0, 60)
+    setImagePickerField(fieldId)
   }
 
   async function saveTitle() {
@@ -2862,6 +2861,20 @@ export function DeckEditorPage() {
         onClose={() => setShowShortcutsModal(false)}
       />
 
+      {/* Image Picker Modal */}
+      <AnimatePresence>
+        {imagePickerField && (
+          <ImagePickerModal
+            initialQuery={imagePickerQueryRef.current}
+            onSelect={url => {
+              handleFieldSave(imagePickerField, url)
+              setImagePickerField(null)
+            }}
+            onClose={() => setImagePickerField(null)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* DB-30 — Toasts */}
       <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 3000, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {toasts.map(t => (
@@ -3438,6 +3451,11 @@ function StylePanelInline({
           { id: 'bokeh',     emoji: '💫', label: 'Bokeh',       desc: 'Lumières floues' },
           { id: 'geometric', emoji: '⬡',  label: 'Géomét.',     desc: 'Formes flottantes' },
           { id: 'waves',     emoji: '🌊', label: 'Vagues',      desc: 'Ondulations' },
+          { id: 'sakura',    emoji: '🌸', label: 'Sakura',      desc: 'Pétales qui tombent' },
+          { id: 'mist',      emoji: '☁️', label: 'Brume',       desc: 'Nuages épurés' },
+          { id: 'leaves',    emoji: '🍃', label: 'Feuilles',    desc: 'Feuilles nature' },
+          { id: 'minimal',   emoji: '◦',  label: 'Minimal',     desc: 'Ultra-épuré' },
+          { id: 'fireflies', emoji: '🌿', label: 'Lucioles',    desc: 'Points lumineux' },
           { id: 'none',      emoji: '◻',  label: 'Aucun',       desc: 'Fond uni' },
         ]
         const currentBg: BgType = (themeJSON.bgAnimation as BgType) ?? 'galaxy'

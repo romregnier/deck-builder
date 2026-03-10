@@ -5,8 +5,16 @@ import { MatrixCanvas } from './backgrounds/MatrixCanvas'
 import { BokehCanvas } from './backgrounds/BokehCanvas'
 import { GeometricCanvas } from './backgrounds/GeometricCanvas'
 import { WavesCanvas } from './backgrounds/WavesCanvas'
+import { SakuraCanvas } from './backgrounds/SakuraCanvas'
+import { MistCanvas } from './backgrounds/MistCanvas'
+import { LeavesCanvas } from './backgrounds/LeavesCanvas'
+import { MinimalCanvas } from './backgrounds/MinimalCanvas'
+import { FirefliesCanvas } from './backgrounds/FirefliesCanvas'
 
-export type BgType = 'galaxy' | 'particles' | 'aurora' | 'matrix' | 'bokeh' | 'geometric' | 'waves' | 'none'
+export type BgType =
+  | 'galaxy' | 'particles' | 'aurora' | 'matrix' | 'bokeh' | 'geometric' | 'waves'
+  | 'sakura' | 'mist' | 'leaves' | 'minimal' | 'fireflies'
+  | 'none'
 
 interface AnimatedBackgroundProps {
   type: BgType
@@ -30,6 +38,11 @@ export function AnimatedBackground({ type, accentColor, style }: AnimatedBackgro
     case 'bokeh':     return <BokehCanvas {...props} />
     case 'geometric': return <GeometricCanvas {...props} />
     case 'waves':     return <WavesCanvas {...props} />
+    case 'sakura':    return <SakuraCanvas {...props} />
+    case 'mist':      return <MistCanvas {...props} />
+    case 'leaves':    return <LeavesCanvas {...props} />
+    case 'minimal':   return <MinimalCanvas {...props} />
+    case 'fireflies': return <FirefliesCanvas {...props} />
     default:          return null
   }
 }
