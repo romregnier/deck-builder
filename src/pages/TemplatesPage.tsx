@@ -71,8 +71,6 @@ function TemplateCard({ template, onDelete }: { template: DeckTemplate; onDelete
         description: template.description || '',
         theme_json: themeJson,
         status: 'draft',
-        is_template_edit: true,
-        source_template_id: template.id,
       })
       .select()
       .single()
