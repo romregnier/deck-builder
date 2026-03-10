@@ -271,9 +271,11 @@ ${outline.map((s, i) => `Slide ${i + 1} (${s.type}): "${s.title}"${s.customPromp
       title: deckJSON.title || brief.title,
       description: brief.description,
       // FIX I2 — stocker lang dans theme_json pour y accéder depuis l'éditeur
+      // FIX I3 — conserver accentColor + preset du brief (template ou URL analyzer)
       theme_json: JSON.stringify({
-        theme: deckJSON.theme || themeMap[brief.theme],
+        preset: deckJSON.theme || themeMap[brief.theme],
         lang: brief.lang,
+        ...(brief.accentColor ? { accentColor: brief.accentColor } : {}),
       }),
       status: 'draft',
       slide_count: deckJSON.slides.length,
