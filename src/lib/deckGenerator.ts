@@ -5,11 +5,10 @@
  * Utilise @google/generative-ai (Gemini) pour générer les slides
  * puis insère le résultat dans Supabase.
  */
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import { supabase } from './supabase'
+import { callGemini } from './geminiClient'
 import type { DeckBrief, DeckJSON, SlideJSON, SlideType } from '../types/deck'
 
-const GOOGLE_AI_KEY = import.meta.env.VITE_GOOGLE_AI_KEY || 'AIzaSyDHlY3Vv-3scAAzLGTyZxHr1mK9Qgc1rho'
 
 // ── Outline types ─────────────────────────────────────────────────────────────
 
@@ -24,9 +23,6 @@ export interface SlideOutline {
  * Rapide (~1 seconde), sans contenu complet.
  */
 export async function generateOutline(brief: DeckBrief): Promise<SlideOutline[]> {
-  const genAI = new GoogleGenerativeAI(GOOGLE_AI_KEY)
-  const model = genAI.getGenerativeModel({ model: 'gemini-flash-lite-latest' })
-
   // Enrichissement URLs pour l'outline aussi
   const urlCtx = await enrichDescriptionWithUrls(brief.description || '')
 
@@ -57,8 +53,7 @@ Retourne UNIQUEMENT un JSON array avec exactement ${brief.slideCount} objets:
 
 Pas de markdown, pas de commentaires. JSON pur.`
 
-  const result = await model.generateContent(prompt)
-  const rawText = result.response.text()
+  const rawText = await callGemini(prompt)
 
   try {
     const cleaned = rawText
@@ -289,16 +284,8 @@ ${outline.map((s, i) => `Slide ${i + 1} (${s.type}): "${s.title}"${s.customPromp
 
   onProgress?.({ step: 'writing', pct: 30, message: 'Rédaction des slides...' })
 
-  // Appel Gemini
-  const genAI = new GoogleGenerativeAI(GOOGLE_AI_KEY)
-  const model = genAI.getGenerativeModel({ model: 'gemini-flash-lite-latest' })
-
-  const result = await model.generateContent([
-    { text: SYSTEM_PROMPT },
-    { text: userPrompt },
-  ])
-
-  const rawText = result.response.text()
+  // Appel Gemini via proxy
+  const rawText = await callGemini(userPrompt, { system: SYSTEM_PROMPT })
 
   onProgress?.({ step: 'finalizing', pct: 60, message: 'Finalisation...' })
 
@@ -381,9 +368,6 @@ export async function regenerateSlide(
   currentContent: Record<string, unknown>,
   lang?: string  // FIX F — langue du deck
 ): Promise<Record<string, unknown>> {
-  const genAI = new GoogleGenerativeAI(GOOGLE_AI_KEY)
-  const model = genAI.getGenerativeModel({ model: 'gemini-flash-lite-latest' })
-
   // FIX F — instruction de langue
   const langInstruction = lang === 'English'
     ? 'Generate the content in English.'
@@ -397,8 +381,7 @@ Contenu actuel: ${JSON.stringify(currentContent, null, 2)}
 Génère un contenu amélioré au format JSON pour ce type de slide.
 Retourne UNIQUEMENT le JSON de la propriété "content", sans markdown.`
 
-  const result = await model.generateContent(prompt)
-  const rawText = result.response.text()
+  const rawText = await callGemini(prompt)
 
   try {
     const cleaned = rawText

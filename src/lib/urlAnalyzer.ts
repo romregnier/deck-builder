@@ -7,10 +7,9 @@
  * 2. Envoie le contenu à Gemini pour extraction structurée
  * 3. Retourne un brief prêt à pré-remplir + un outline de slides suggéré
  */
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { DeckAudience, DeckTonality, DeckTheme, SlideType } from '../types/deck'
+import { callGemini } from './geminiClient'
 
-const GOOGLE_AI_KEY = import.meta.env.VITE_GOOGLE_AI_KEY || 'AIzaSyDHlY3Vv-3scAAzLGTyZxHr1mK9Qgc1rho'
 
 export interface URLAnalysisResult {
   title: string
@@ -59,8 +58,7 @@ async function fetchURLContent(url: string): Promise<string> {
  * Analyse le contenu extrait via Gemini
  */
 async function analyzeWithGemini(content: string, url: string): Promise<URLAnalysisResult> {
-  const genAI = new GoogleGenerativeAI(GOOGLE_AI_KEY)
-  const model = genAI.getGenerativeModel({ model: 'gemini-flash-lite-latest' })
+
 
   const prompt = `Tu es un expert en présentation professionnelle. Analyse le contenu suivant extrait de la page web "${url}" et génère un brief complet pour créer une présentation professionnelle.
 
@@ -104,8 +102,7 @@ EXEMPLES de thème selon le contenu :
 
 Note : utilise UNIQUEMENT "dark_premium" ou "gradient_bold" — les thèmes clairs ne sont pas encore supportés.`
 
-  const result = await model.generateContent(prompt)
-  const raw = result.response.text()
+  const raw = await callGemini(prompt)
 
   try {
     const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()

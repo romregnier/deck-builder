@@ -1,11 +1,10 @@
 /**
+import { callGemini } from './geminiClient'
  * pdfAnalyzer.ts — Extraction de la charte graphique et du contenu depuis un PDF
  * Utilise Gemini pour analyser le PDF et retourner les couleurs / thème / slides détectés.
  */
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { SlideType } from '../types/deck'
 
-const GOOGLE_AI_KEY = import.meta.env.VITE_GOOGLE_AI_KEY || 'AIzaSyDHlY3Vv-3scAAzLGTyZxHr1mK9Qgc1rho'
 
 export interface ExtractedDA {
   primaryColor: string        // hex, ex: '#E11F7B'
@@ -38,9 +37,7 @@ export async function extractDAFromPDF(file: File): Promise<ExtractedDA> {
   const arrayBuffer = await file.arrayBuffer()
   const base64 = arrayBufferToBase64(arrayBuffer)
 
-  // 2. Appel Gemini avec inline data (PDF)
-  const genAI = new GoogleGenerativeAI(GOOGLE_AI_KEY)
-  const model = genAI.getGenerativeModel({ model: 'gemini-flash-lite-latest' })
+  // 2. Appel Gemini via proxy avec inline data (PDF)
 
   const prompt = `Analyse ce PDF de présentation et extrais la charte graphique.
 Retourne UNIQUEMENT ce JSON (sans markdown) :
@@ -60,17 +57,15 @@ Règles :
 - corporate = tons froids, bleu/gris, professionnel classique
 - Si le PDF n'a pas de couleurs dominantes claires, utilise #E11F7B pour primaryColor`
 
-  const result = await model.generateContent([
-    { text: prompt },
-    { inlineData: { mimeType: 'application/pdf', data: base64 } },
-  ])
+  const PROXY = import.meta.env.VITE_GEMINI_PROXY_URL || 'http://vps-b2edf054.vps.ovh.net:3099'
+  const res = await fetch(`${PROXY}/generate-with-file`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, mimeType: 'application/pdf', data: base64 }),
+  })
+  const { text: raw } = await res.json() as { text: string }
 
-  const raw = result.response.text()
-    .replace(/```json\s*/gi, '')
-    .replace(/```\s*/g, '')
-    .trim()
-
-  return JSON.parse(raw) as ExtractedDA
+  return JSON.parse(raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()) as ExtractedDA
 }
 
 // ── Full presentation extraction ──────────────────────────────────────────────
@@ -95,8 +90,7 @@ export async function extractFullPresentation(file: File): Promise<ExtractedPres
   const arrayBuffer = await file.arrayBuffer()
   const base64 = arrayBufferToBase64(arrayBuffer)
 
-  const genAI = new GoogleGenerativeAI(GOOGLE_AI_KEY)
-  const model = genAI.getGenerativeModel({ model: 'gemini-flash-lite-latest' })
+
 
   const prompt = `Analyse cette présentation PDF et extrais TOUT son contenu.
 
@@ -171,12 +165,14 @@ Règles importantes :
 - Si une slide a une citation → type "quote"
 - Pour la DA : dark_premium=fond sombre, light_clean=fond blanc, gradient_bold=gradients colorés, corporate=bleu/gris professionnel`
 
-  const result = await model.generateContent([
-    { text: prompt },
-    { inlineData: { mimeType: 'application/pdf', data: base64 } },
-  ])
-
-  const raw = result.response.text()
+  const PROXY2 = import.meta.env.VITE_GEMINI_PROXY_URL || 'http://vps-b2edf054.vps.ovh.net:3099'
+  const res2 = await fetch(`${PROXY2}/generate-with-file`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, mimeType: 'application/pdf', data: base64 }),
+  })
+  const { text: rawFull } = await res2.json() as { text: string }
+  const raw = rawFull
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim()
