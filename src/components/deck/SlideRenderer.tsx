@@ -27,6 +27,17 @@ import type { SlideJSON, DeckTheme, DeckThemeJSON, SlideBackground } from '../..
 import { BACKGROUND_PRESETS } from '../../types/deck'
 import { EditableField } from './EditableField'
 
+// ── Utilitaire : détecter si une couleur hex est claire ──────────────────────
+function isLightColor(hex: string): boolean {
+  const clean = hex.replace('#', '')
+  const r = parseInt(clean.substring(0, 2), 16)
+  const g = parseInt(clean.substring(2, 4), 16)
+  const b = parseInt(clean.substring(4, 6), 16)
+  // luminance perceptuelle
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.55
+}
+
 // ── DB-12 — SortableItem wrapper ─────────────────────────────────────────────
 
 function SortableItem({ id, children }: { id: string; children: React.ReactNode }) {
@@ -181,6 +192,16 @@ export function SlideRenderer({
     // FIX C2 — n'appliquer le background solide que si pas de fond animé actif
     if (!themeJSON.bgAnimation || themeJSON.bgAnimation === 'none') {
       ;(cssVars as Record<string, string>)['background'] = themeJSON.bgColor
+    }
+    // Dériver --surface et --elevated depuis bgColor pour cohérence thème clair/sombre
+    if (isLightColor(themeJSON.bgColor)) {
+      ;(cssVars as Record<string, string>)['--surface'] = 'rgba(0,0,0,0.04)'
+      ;(cssVars as Record<string, string>)['--elevated'] = 'rgba(0,0,0,0.07)'
+      ;(cssVars as Record<string, string>)['--border'] = 'rgba(0,0,0,0.08)'
+    } else {
+      ;(cssVars as Record<string, string>)['--surface'] = 'rgba(255,255,255,0.05)'
+      ;(cssVars as Record<string, string>)['--elevated'] = 'rgba(255,255,255,0.09)'
+      ;(cssVars as Record<string, string>)['--border'] = 'rgba(255,255,255,0.08)'
     }
   }
   if (themeJSON?.accentGradient) (cssVars as Record<string, string>)['--gradient'] = themeJSON.accentGradient
@@ -1381,14 +1402,14 @@ function renderSlide(
           <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: thumbnail ? 6 : 24, minHeight: 0 }}>
             {[left, right].map((col, i) => {
               const isRight = i === 1
-              const defaultAccent = isRight ? accentColor : 'rgba(255,255,255,0.3)'
+              const defaultAccent = isRight ? accentColor : 'var(--text-sec)'
               const colColor = (col as { color?: string }).color || defaultAccent
               const colAccent = colColor
               return (
                 <div key={i} style={{
                   borderRadius: thumbnail ? 4 : 16,
                   border: `1px solid ${colAccent}33`,
-                  background: isRight ? `${colAccent}0A` : 'rgba(255,255,255,0.03)',
+                  background: isRight ? `${colAccent}0A` : 'var(--surface)',
                   overflow: 'hidden',
                   boxShadow: isRight && !thumbnail ? `0 0 32px ${colAccent}22` : 'none',
                   display: 'flex', flexDirection: 'column',
@@ -1398,7 +1419,7 @@ function renderSlide(
                     padding: thumbnail ? '4px 6px' : '16px 24px',
                     background: isRight
                       ? `linear-gradient(135deg, ${colAccent}22, ${colAccent}11)`
-                      : 'rgba(255,255,255,0.05)',
+                      : 'var(--elevated)',
                     borderBottom: `1px solid ${colAccent}33`,
                     fontSize: thumbnail ? 6 : 18, fontWeight: 800,
                     color: colAccent,
@@ -1416,9 +1437,9 @@ function renderSlide(
                           {isRight ? '✓' : '×'}
                         </span>
                         {editMode ? (
-                          <EditableField as="span" value={item} fieldId={i === 0 ? `left.items.${j}` : `right.items.${j}`} onSave={v => onFieldSave?.(i === 0 ? `left.items.${j}` : `right.items.${j}`, v)} selected={selectedFieldId === (i === 0 ? `left.items.${j}` : `right.items.${j}`)} editMode={editMode} onDoubleClick={() => onFieldSelect?.(i === 0 ? `left.items.${j}` : `right.items.${j}`)} style={{ fontSize: thumbnail ? 5 : 14, color: isRight ? textColor : 'rgba(255,255,255,0.5)', lineHeight: 1.5 }} placeholder="Item..." />
+                          <EditableField as="span" value={item} fieldId={i === 0 ? `left.items.${j}` : `right.items.${j}`} onSave={v => onFieldSave?.(i === 0 ? `left.items.${j}` : `right.items.${j}`, v)} selected={selectedFieldId === (i === 0 ? `left.items.${j}` : `right.items.${j}`)} editMode={editMode} onDoubleClick={() => onFieldSelect?.(i === 0 ? `left.items.${j}` : `right.items.${j}`)} style={{ fontSize: thumbnail ? 5 : 14, color: isRight ? textColor : 'var(--text-sec)', lineHeight: 1.5 }} placeholder="Item..." />
                         ) : (
-                          <span style={{ fontSize: thumbnail ? 5 : 14, color: isRight ? textColor : 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                          <span style={{ fontSize: thumbnail ? 5 : 14, color: isRight ? textColor : 'var(--text-sec)', lineHeight: 1.5 }}>
                             {item}
                           </span>
                         )}
