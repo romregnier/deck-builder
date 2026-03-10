@@ -84,19 +84,19 @@ function TemplateCard({ template, onDelete }: { template: DeckTemplate; onDelete
     // Créer les slides depuis la structure du template
     if (template.slide_structure && template.slide_structure.length > 0) {
       const slidesData = template.slide_structure.map((s, i) => ({
-        presentation_id: deck.id,
+        deck_id: deck.id,
         type: s.type,
-        position: i,
-        content: s.content ? JSON.stringify(s.content) : JSON.stringify({}),
+        position: typeof s.position === 'number' ? s.position : i,
+        content_json: s.content ?? {},
       }))
       await supabase.from('slides').insert(slidesData)
     } else {
       // Slide hero par défaut si pas de structure
       await supabase.from('slides').insert({
-        presentation_id: deck.id,
+        deck_id: deck.id,
         type: 'hero',
         position: 0,
-        content: JSON.stringify({ title: template.name, subtitle: '' }),
+        content_json: { title: template.name, subtitle: '' },
       })
     }
 

@@ -1713,7 +1713,7 @@ export function DeckEditorPage() {
     const slideStructure = slides.map((s, i) => ({
       type: s.type,
       position: i,
-      content: s.content,
+      content: s.content ?? {},
     }))
 
     // Mettre à jour le template dans Supabase
@@ -1728,7 +1728,7 @@ export function DeckEditorPage() {
 
     // Supprimer le deck temporaire
     if (id) {
-      await supabase.from('slides').delete().eq('presentation_id', id)
+      await supabase.from('slides').delete().eq('deck_id', id)
       await supabase.from('presentations').delete().eq('id', id)
     }
 
