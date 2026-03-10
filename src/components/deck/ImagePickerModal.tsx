@@ -200,6 +200,7 @@ export function ImagePickerModal({ onSelect, onClose, initialQuery = '' }: Image
                     onChange={e => setQuery(e.target.value)}
                     placeholder="Ex: startup, technology, nature, japan..."
                     autoFocus
+                    autoComplete="off"
                     style={{
                       width: '100%', padding: '8px 12px 8px 32px',
                       borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)',
