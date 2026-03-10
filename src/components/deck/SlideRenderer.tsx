@@ -668,14 +668,14 @@ function renderSlide(
             {editMode ? (
               <>
                 <EditableField as="div" className="tpl-content__label" value={content.label || ''} fieldId="label" onSave={v => onFieldSave?.('label', v)} selected={selectedFieldId === 'label'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('label')} placeholder="Label..." />
-                <EditableField as="h2" className="tpl-content__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} placeholder="Titre..." />
+                <EditableField as="h2" className="tpl-content__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={gradientText ? gradientTextStyle : {}} placeholder="Titre..." />
                 <EditableField as="p" className="tpl-content__body" value={content.body || ''} fieldId="body" onSave={v => onFieldSave?.('body', v)} selected={selectedFieldId === 'body'} editMode={editMode} multiline onDoubleClick={() => onFieldSelect?.('body')} placeholder="Corps du texte..." />
                 {editableBullets}
               </>
             ) : (
               <>
                 {content.label && <div className="tpl-content__label">{content.label}</div>}
-                {content.title && <h2 className="tpl-content__title">{content.title}</h2>}
+                {content.title && <h2 className="tpl-content__title" style={gradientText ? gradientTextStyle : {}}>{content.title}</h2>}
                 {content.body && <p className="tpl-content__body">{content.body}</p>}
                 {content.bullets && content.bullets.length > 0 && (
                   <ul className="tpl-content__bullets">
@@ -734,14 +734,14 @@ function renderSlide(
               {editMode ? (
                 <>
                   <EditableField as="div" className="tpl-content__label" value={content.label || ''} fieldId="label" onSave={v => onFieldSave?.('label', v)} selected={selectedFieldId === 'label'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('label')} placeholder="Label..." />
-                  <EditableField as="h2" className="tpl-content__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} placeholder="Titre..." />
+                  <EditableField as="h2" className="tpl-content__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={gradientText ? gradientTextStyle : {}} placeholder="Titre..." />
                   <EditableField as="p" className="tpl-content__body" value={content.body || ''} fieldId="body" onSave={v => onFieldSave?.('body', v)} selected={selectedFieldId === 'body'} editMode={editMode} multiline onDoubleClick={() => onFieldSelect?.('body')} placeholder="Corps..." />
                   {editableBullets}
                 </>
               ) : (
                 <>
                   {content.label && <div className="tpl-content__label">{content.label}</div>}
-                  {content.title && <h2 className="tpl-content__title">{content.title}</h2>}
+                  {content.title && <h2 className="tpl-content__title" style={gradientText ? gradientTextStyle : {}}>{content.title}</h2>}
                   {content.body && <p className="tpl-content__body">{content.body}</p>}
                   {content.bullets && content.bullets.length > 0 && (
                     <ul className="tpl-content__bullets" style={{ columns: 2, gap: 24, textAlign: 'left', marginTop: 20 }}>
@@ -764,12 +764,12 @@ function renderSlide(
                 {editMode ? (
                   <>
                     <EditableField as="div" className="tpl-content__label" value={content.label || ''} fieldId="label" onSave={v => onFieldSave?.('label', v)} selected={selectedFieldId === 'label'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('label')} placeholder="Label..." />
-                    <EditableField as="h2" className="tpl-content__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} placeholder="Titre..." />
+                    <EditableField as="h2" className="tpl-content__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={gradientText ? gradientTextStyle : {}} placeholder="Titre..." />
                   </>
                 ) : (
                   <>
                     {content.label && <div className="tpl-content__label">{content.label}</div>}
-                    {content.title && <h2 className="tpl-content__title">{content.title}</h2>}
+                    {content.title && <h2 className="tpl-content__title" style={gradientText ? gradientTextStyle : {}}>{content.title}</h2>}
                   </>
                 )}
               </div>
@@ -1184,11 +1184,12 @@ function renderSlide(
       return (
         <div className="tpl-chart">
           {editMode ? (
-            <EditableField as="h2" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: 'clamp(20px, 2.8cqw, 36px)', fontWeight: 700, color: 'var(--text-pri)', marginBottom: 32, textAlign: 'center' }} placeholder="Titre du graphique..." />
+            <EditableField as="h2" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: 'clamp(20px, 2.8cqw, 36px)', fontWeight: 700, marginBottom: 32, textAlign: 'center', ...(gradientText ? gradientTextStyle : { color: 'var(--text-pri)' }) }} placeholder="Titre du graphique..." />
           ) : content.title ? (
             <h2 style={{
               fontSize: 'clamp(20px, 2.8cqw, 36px)', fontWeight: 700,
-              color: 'var(--text-pri)', marginBottom: 32, textAlign: 'center',
+              marginBottom: 32, textAlign: 'center',
+              ...(gradientText ? gradientTextStyle : { color: 'var(--text-pri)' }),
             }}>
               {content.title}
             </h2>
@@ -1233,9 +1234,9 @@ function renderSlide(
       return (
         <div className="tpl-timeline" style={{ padding: thumbnail ? '12px 20px' : undefined, boxSizing: 'border-box' }}>
           {editMode ? (
-            <EditableField as="h2" className="tpl-timeline__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: thumbnail ? 10 : 'clamp(28px, 3cqw, 42px)', fontWeight: 800, marginBottom: thumbnail ? 8 : 48, color: textColor }} placeholder="Timeline..." />
+            <EditableField as="h2" className="tpl-timeline__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: thumbnail ? 10 : 'clamp(28px, 3cqw, 42px)', fontWeight: 800, marginBottom: thumbnail ? 8 : 48, ...(gradientText && !thumbnail ? gradientTextStyle : { color: textColor }) }} placeholder="Timeline..." />
           ) : (
-            <h2 className="tpl-timeline__title" style={{ fontSize: thumbnail ? 10 : 'clamp(28px, 3cqw, 42px)', fontWeight: 800, marginBottom: thumbnail ? 8 : 48, color: textColor }}>
+            <h2 className="tpl-timeline__title" style={{ fontSize: thumbnail ? 10 : 'clamp(28px, 3cqw, 42px)', fontWeight: 800, marginBottom: thumbnail ? 8 : 48, ...(gradientText && !thumbnail ? gradientTextStyle : { color: textColor }) }}>
               {content.title || 'Timeline'}
             </h2>
           )}
@@ -1371,9 +1372,9 @@ function renderSlide(
       return (
         <div className="tpl-comparison" style={{ padding: thumbnail ? '10px 14px' : undefined, gap: thumbnail ? 8 : 32, boxSizing: 'border-box' }}>
           {editMode ? (
-            <EditableField as="h2" className="tpl-comparison__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: thumbnail ? 9 : 'clamp(28px, 3cqw, 48px)', fontWeight: 800, textAlign: 'center', color: textColor }} placeholder="Comparaison..." />
+            <EditableField as="h2" className="tpl-comparison__title" value={content.title || ''} fieldId="title" onSave={v => onFieldSave?.('title', v)} selected={selectedFieldId === 'title'} editMode={editMode} onDoubleClick={() => onFieldSelect?.('title')} style={{ fontSize: thumbnail ? 9 : 'clamp(28px, 3cqw, 48px)', fontWeight: 800, textAlign: 'center', ...(gradientText && !thumbnail ? gradientTextStyle : { color: textColor }) }} placeholder="Comparaison..." />
           ) : (
-            <h2 className="tpl-comparison__title" style={{ fontSize: thumbnail ? 9 : 'clamp(28px, 3cqw, 48px)', fontWeight: 800, textAlign: 'center', color: textColor }}>
+            <h2 className="tpl-comparison__title" style={{ fontSize: thumbnail ? 9 : 'clamp(28px, 3cqw, 48px)', fontWeight: 800, textAlign: 'center', ...(gradientText && !thumbnail ? gradientTextStyle : { color: textColor }) }}>
               {content.title || 'Comparaison'}
             </h2>
           )}
