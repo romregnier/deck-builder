@@ -12,45 +12,48 @@ interface ImagePickerModalProps {
   initialQuery?: string  // suggestion auto basée sur le contenu de la slide
 }
 
-const UNSPLASH_BASE = 'https://source.unsplash.com'
 const GRID_COUNT = 9
 
-function getUnsplashUrl(query: string, sig: number, w = 600, h = 400) {
-  const encoded = encodeURIComponent(query.trim() || 'abstract')
-  return `${UNSPLASH_BASE}/${w}x${h}/?${encoded}&sig=${sig}`
+// Loremflickr — keyword-based, sans clé API, stable avec lock={n}
+function getImageUrl(query: string, lock: number, w = 600, h = 400) {
+  const keyword = encodeURIComponent((query.trim() || 'abstract').split(' ').slice(0, 3).join(','))
+  return `https://loremflickr.com/${w}/${h}/${keyword}?lock=${lock}`
 }
 
-// Résoudre les redirects Unsplash Source → URL finale (pour preview)
-function UnsplashThumb({ query, sig, onSelect }: {
-  query: string; sig: number; onSelect: (url: string) => void
+function ImageThumb({ query, lock, onSelect }: {
+  query: string; lock: number; onSelect: (url: string) => void
 }) {
   const [loaded, setLoaded] = useState(false)
-  const [imgSrc] = useState(() => getUnsplashUrl(query, sig, 400, 280))
+  const [error, setError] = useState(false)
+  const src = getImageUrl(query, lock, 400, 280)
+  const fullSrc = getImageUrl(query, lock, 1200, 800)
 
   return (
     <button
-      onClick={() => onSelect(getUnsplashUrl(query, sig, 1200, 800))}
+      onClick={() => !error && onSelect(fullSrc)}
       style={{
         border: '2px solid transparent',
         borderRadius: 8,
         overflow: 'hidden',
-        cursor: 'pointer',
+        cursor: error ? 'not-allowed' : 'pointer',
         background: 'rgba(255,255,255,0.06)',
         padding: 0,
         aspectRatio: '4/3',
         position: 'relative',
         transition: 'border-color 0.15s, transform 0.15s',
+        opacity: error ? 0.4 : 1,
       }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLButtonElement).style.borderColor = '#E11F7B'
+        if (error) return
+        ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#E11F7B'
         ;(e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.03)'
       }}
       onMouseLeave={e => {
-        (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent'
+        ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent'
         ;(e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'
       }}
     >
-      {!loaded && (
+      {!loaded && !error && (
         <div style={{
           position: 'absolute', inset: 0,
           background: 'rgba(255,255,255,0.05)',
@@ -64,24 +67,31 @@ function UnsplashThumb({ query, sig, onSelect }: {
           }} />
         </div>
       )}
+      {error && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 20,
+        }}>🖼️</div>
+      )}
       <img
-        src={imgSrc}
+        src={src}
         alt=""
         onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
         style={{
           width: '100%', height: '100%', objectFit: 'cover',
           display: 'block',
           opacity: loaded ? 1 : 0,
           transition: 'opacity 0.3s',
         }}
-        crossOrigin="anonymous"
       />
       <div style={{
         position: 'absolute', bottom: 4, right: 4,
         fontSize: 8, color: 'rgba(255,255,255,0.4)',
         background: 'rgba(0,0,0,0.4)', padding: '1px 4px', borderRadius: 3,
       }}>
-        Unsplash
+        Flickr
       </div>
     </button>
   )
@@ -231,18 +241,18 @@ export function ImagePickerModal({ onSelect, onClose, initialQuery = '' }: Image
                 gridTemplateColumns: 'repeat(3, 1fr)',
                 gap: 8,
               }}>
-                {sigs.map(sig => (
-                  <UnsplashThumb
-                    key={`${activeQuery}-${sig}`}
-                    query={activeQuery || 'abstract background'}
-                    sig={sig}
+                {sigs.map(lock => (
+                  <ImageThumb
+                    key={`${activeQuery}-${lock}`}
+                    query={activeQuery || 'abstract'}
+                    lock={lock}
                     onSelect={url => { onSelect(url); onClose() }}
                   />
                 ))}
               </div>
 
               <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', textAlign: 'center', marginTop: 12, margin: '12px 0 0' }}>
-                Photos par <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.4)' }}>Unsplash</a>
+                Photos par <a href="https://www.flickr.com" target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(255,255,255,0.4)' }}>Flickr</a> via loremflickr.com
               </p>
             </motion.div>
           )}
