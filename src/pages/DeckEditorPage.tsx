@@ -2217,7 +2217,7 @@ export function DeckEditorPage() {
   }
 
   return (
-    <div data-theme={theme.toUpperCase().replace('_', '_')} className="deck-editor" style={{ fontFamily: 'Poppins, sans-serif' }}>
+    <div data-theme="DARK_PREMIUM" className="deck-editor" style={{ fontFamily: 'Poppins, sans-serif' }}>
 
       {/* ── Topbar ──────────────────────────────────────────────────────────── */}
       <div className="deck-topbar" style={{ justifyContent: 'space-between' }}>

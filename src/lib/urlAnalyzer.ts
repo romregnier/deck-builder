@@ -76,7 +76,7 @@ Retourne UNIQUEMENT un objet JSON (pas de markdown) avec cette structure EXACTE 
   "companyName": "Nom de l'entreprise ou du produit si détecté, sinon null",
   "audience": "Investisseur" | "Partenaire" | "Équipe" | "Client" | "Public",
   "tonality": "Formel" | "Neutre" | "Dynamique" | "Inspirant",
-  "theme": "dark_premium" | "light_clean" | "gradient_bold" | "corporate",
+  "theme": "dark_premium" | "gradient_bold",
   "keyFacts": ["fait/stat clé 1", "fait/stat clé 2", "..."],
   "suggestedSlideCount": 8,
   "rawSummary": "Résumé en 2-3 phrases pour montrer ce qui a été compris",
@@ -98,9 +98,11 @@ RÈGLES pour suggestedOutline :
 
 EXEMPLES de thème selon le contenu :
 - SaaS B2B / tech → dark_premium
-- Corporate / finance → corporate
+- Corporate / finance → dark_premium
 - Startup créative → gradient_bold
-- Produit grand public → light_clean`
+- Produit grand public → dark_premium
+
+Note : utilise UNIQUEMENT "dark_premium" ou "gradient_bold" — les thèmes clairs ne sont pas encore supportés.`
 
   const result = await model.generateContent(prompt)
   const raw = result.response.text()
@@ -112,6 +114,10 @@ EXEMPLES de thème selon le contenu :
     if (!parsed.title || !parsed.description) throw new Error('Champs manquants')
     // S'assurer que suggestedSlideCount correspond à l'outline
     parsed.suggestedSlideCount = parsed.suggestedOutline?.length ?? 8
+    // Guard : les thèmes clairs ne sont pas supportés par le rendu (SlideRenderer hardcode des couleurs sombres)
+    if (parsed.theme === 'light_clean' || parsed.theme === 'corporate') {
+      parsed.theme = 'dark_premium'
+    }
     return parsed
   } catch (e) {
     console.error('[urlAnalyzer] parse error:', e, raw)
