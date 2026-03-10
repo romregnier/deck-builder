@@ -27,15 +27,21 @@ export async function generateOutline(brief: DeckBrief): Promise<SlideOutline[]>
   const genAI = new GoogleGenerativeAI(GOOGLE_AI_KEY)
   const model = genAI.getGenerativeModel({ model: 'gemini-flash-lite-latest' })
 
-  const prompt = `Tu es un expert en présentation professionnelle.
-Génère un outline de deck pour le sujet suivant:
+  // Enrichissement URLs pour l'outline aussi
+  const urlCtx = await enrichDescriptionWithUrls(brief.description || '')
 
+  const prompt = `Tu es un expert en présentation professionnelle.
+Génère un outline de deck pour le sujet suivant.
+
+## BRIEF
 Titre: ${brief.title}
-Description: ${brief.description}
+Description: ${brief.description}${urlCtx}
 Audience: ${brief.audience}
 Tonalité: ${brief.tonality}
 Langue: ${brief.lang}
 Nombre de slides: ${brief.slideCount}
+
+IMPORTANT : Les titres des slides doivent refléter les éléments SPÉCIFIQUES du brief (noms de marques, chiffres réels, cas d'usage concrets) — pas des titres génériques.
 
 CONTRAINTES:
 - La première slide doit être de type "hero"
@@ -78,14 +84,22 @@ Pas de markdown, pas de commentaires. JSON pur.`
 }
 
 const SYSTEM_PROMPT = `Tu es un expert en présentation professionnelle. Génère un deck de présentation au format JSON strict.
-Le deck doit être visuellement impactant avec du VRAI contenu (pas de placeholders Lorem Ipsum).
-Chaque slide doit avoir du contenu réel, concret et adapté au sujet donné.
-La première slide est toujours de type "hero", la dernière toujours de type "cta".
-Entre les deux: alterne content, stats, quote, chart, timeline, comparison selon ce qui fait sens pour le sujet.
-Pour une slide de type "chart": inclure "chartType" ("bar" | "line" | "pie" | "donut") et "data" ([{"label":"...","value":N}]).
-Pour une slide de type "timeline": inclure "title" et "events" ([{"year":"2020","label":"Étape","desc":"Description optionnelle"}]).
-Pour une slide de type "comparison": inclure "title", "left" ({label, items:[]}) et "right" ({label, items:[]}).
-Retourne UNIQUEMENT le JSON, sans markdown, sans commentaires.`
+
+RÈGLES ABSOLUES SUR LE CONTENU :
+1. Traite la description comme un brief inviolable — source de vérité primaire.
+2. Utilise les NOMS DE MARQUES, NOMS DE PRODUITS, NOMS DE PERSONNES exactement tels qu'ils apparaissent dans le brief. Ne les paraphrase jamais.
+3. Utilise les CHIFFRES ET STATISTIQUES verbatim — ne les arrondis pas, ne les invente pas.
+4. Si le brief mentionne des URLS, des CONCURRENTS, des FONCTIONNALITÉS SPÉCIFIQUES — utilise-les tels quels dans les slides.
+5. N'invente AUCUNE donnée absente du brief. S'il manque des chiffres, laisse un label descriptif sans chiffre inventé.
+6. Le contenu généré doit refléter fidèlement la réalité décrite — pas de généralités corporate creuses.
+
+RÈGLES STRUCTURELLES :
+- La première slide est toujours de type "hero", la dernière toujours de type "cta".
+- Entre les deux : alterne content, stats, quote, chart, timeline, comparison selon ce qui fait sens.
+- Pour "chart" : inclure "chartType" ("bar"|"line"|"pie"|"donut") et "data" ([{"label":"...","value":N}]).
+- Pour "timeline" : inclure "title" et "events" ([{"year":"2020","label":"Étape","desc":"Description"}]).
+- Pour "comparison" : inclure "title", "left" ({label, items:[]}) et "right" ({label, items:[]}).
+- Retourne UNIQUEMENT le JSON, sans markdown, sans commentaires.`
 
 export type GenerationProgress = {
   step: 'structuring' | 'writing' | 'finalizing' | 'saving'
@@ -100,6 +114,36 @@ export type ProgressCallback = (progress: GenerationProgress) => void
  * Si outline est fourni, l'utilise comme guide de structure.
  * Retourne l'ID du deck créé.
  */
+/**
+ * Détecte les URLs dans un texte, les fetche via Jina Reader et retourne
+ * le contenu enrichi à injecter dans le prompt de génération.
+ */
+async function enrichDescriptionWithUrls(description: string): Promise<string> {
+  const urlRegex = /https?:\/\/[^\s"'<>]+/g
+  const urls = description.match(urlRegex)
+  if (!urls || urls.length === 0) return ''
+
+  const fetched: string[] = []
+  for (const url of urls.slice(0, 2)) { // max 2 URLs pour rester dans les tokens
+    try {
+      const jinaUrl = `https://r.jina.ai/${url}`
+      const res = await fetch(jinaUrl, {
+        headers: { 'Accept': 'text/plain', 'X-Timeout': '10' },
+      })
+      if (res.ok) {
+        const text = await res.text()
+        // Limiter à 2000 chars par URL pour ne pas exploser le contexte
+        const trimmed = text.replace(/\s+/g, ' ').trim().slice(0, 2000)
+        fetched.push(`--- Contenu extrait de ${url} ---\n${trimmed}`)
+      }
+    } catch {
+      // URL inaccessible — on ignore silencieusement
+    }
+  }
+
+  return fetched.length > 0 ? '\n\n' + fetched.join('\n\n') : ''
+}
+
 export async function generateDeck(
   brief: DeckBrief,
   onProgress?: ProgressCallback,
@@ -112,17 +156,32 @@ export async function generateDeck(
     corporate: 'CORPORATE',
   }
 
-  onProgress?.({ step: 'structuring', pct: 10, message: 'Structuration du contenu...' })
+  onProgress?.({ step: 'structuring', pct: 10, message: 'Analyse du brief...' })
 
-  const userPrompt = `Génère un deck de présentation professionnel sur le sujet suivant:
+  // B — Enrichissement : fetch des URLs présentes dans la description
+  const urlContext = await enrichDescriptionWithUrls(brief.description || '')
+  if (urlContext) {
+    onProgress?.({ step: 'structuring', pct: 18, message: 'Contexte web récupéré...' })
+  }
+
+  const userPrompt = `Génère un deck de présentation professionnel.
+
+## BRIEF (source de vérité — utilise ces informations verbatim)
 
 Titre: ${brief.title}
-Description: ${brief.description}
-Audience: ${brief.audience}
+Audience cible: ${brief.audience}
 Tonalité: ${brief.tonality}
 Langue: ${brief.lang}
 Nombre de slides: ${brief.slideCount}
-Thème visuel: ${themeMap[brief.theme] || 'DARK_PREMIUM'}
+
+## DESCRIPTION DÉTAILLÉE DU SUJET
+${brief.description}${urlContext}
+
+## INSTRUCTIONS DE GÉNÉRATION
+- Extrais de la description : noms de marques, chiffres, fonctionnalités, personnes — et utilise-les EXACTEMENT dans les slides
+- Ne paraphrase pas les noms propres ni les statistiques
+- Le contenu de chaque slide doit refléter directement ce qui est décrit ci-dessus
+- Thème visuel cible : ${themeMap[brief.theme] || 'DARK_PREMIUM'}
 
 Structure JSON attendue:
 {
