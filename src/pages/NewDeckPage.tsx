@@ -511,9 +511,11 @@ function StepBrief({
 function StepStyle({
   data,
   onChange,
+  selectedTemplate,
 }: {
   data: Partial<DeckBrief>
   onChange: (partial: Partial<DeckBrief>) => void
+  selectedTemplate?: DeckTemplate | null
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
@@ -557,48 +559,66 @@ function StepStyle({
         <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
       </div>
 
-      {/* ── Theme grid ── */}
-      <div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {THEMES.map(theme => {
-            const active = data.theme === theme.id
-            return (
-              <button
-                key={theme.id}
-                onClick={() => onChange({ theme: theme.id })}
-                style={{
-                  padding: 0,
-                  borderRadius: 12,
-                  border: `2px solid ${active ? '#E11F7B' : 'rgba(255,255,255,0.08)'}`,
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  overflow: 'hidden',
-                  transition: 'border-color 0.15s',
-                  textAlign: 'left',
-                }}
-              >
-                <div style={{
-                  height: 80,
-                  background: theme.preview,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  {active && <Check size={24} color="#E11F7B" />}
-                </div>
-                <div style={{ padding: '10px 12px', background: '#2C272F' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: active ? '#E11F7B' : '#F5F0F7', marginBottom: 2 }}>
-                    {theme.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
-                    {theme.desc}
-                  </div>
-                </div>
-              </button>
-            )
-          })}
+      {/* ── Theme grid — masqué si template sélectionné (thème inclus) ── */}
+      {selectedTemplate ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+          borderRadius: 10, border: '1px solid rgba(245,158,11,0.25)',
+          background: 'rgba(245,158,11,0.06)',
+        }}>
+          <span style={{ fontSize: 16 }}>🎨</span>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(245,158,11,0.9)', marginBottom: 2 }}>
+              Thème inclus dans le template
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+              Le style visuel de « {selectedTemplate.name} » sera appliqué automatiquement.
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {THEMES.map(theme => {
+              const active = data.theme === theme.id
+              return (
+                <button
+                  key={theme.id}
+                  onClick={() => onChange({ theme: theme.id })}
+                  style={{
+                    padding: 0,
+                    borderRadius: 12,
+                    border: `2px solid ${active ? '#E11F7B' : 'rgba(255,255,255,0.08)'}`,
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    transition: 'border-color 0.15s',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{
+                    height: 80,
+                    background: theme.preview,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    {active && <Check size={24} color="#E11F7B" />}
+                  </div>
+                  <div style={{ padding: '10px 12px', background: '#2C272F' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: active ? '#E11F7B' : '#F5F0F7', marginBottom: 2 }}>
+                      {theme.label}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+                      {theme.desc}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div>
         <label style={labelStyle}>Nombre de slides — {data.slideCount || 8}</label>
@@ -1588,7 +1608,7 @@ export function NewDeckPage() {
                     selected={selectedTemplate}
                     onSelect={handleSelectTemplate}
                   />
-                  <StepStyle data={brief} onChange={updateBrief} />
+                  <StepStyle data={brief} onChange={updateBrief} selectedTemplate={selectedTemplate} />
                 </>
               )}
               {step === 2 && (
