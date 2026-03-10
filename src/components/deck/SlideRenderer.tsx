@@ -1228,7 +1228,7 @@ function renderSlide(
     case 'timeline': {
       const accentColor = themeJSON?.accentColor || '#E11F7B'
       const bgColor2 = themeJSON?.bgColor || '#06040A'
-      const textColor = themeJSON?.textColor || '#F0EDF5'
+      const textColor = themeJSON?.textPrimary || themeJSON?.textColor || '#F0EDF5'
       const events = content.events || []
       return (
         <div className="tpl-timeline" style={{ padding: thumbnail ? '12px 20px' : undefined, boxSizing: 'border-box' }}>
@@ -1365,7 +1365,7 @@ function renderSlide(
 
     case 'comparison': {
       const accentColor = themeJSON?.accentColor || '#E11F7B'
-      const textColor = themeJSON?.textColor || '#F0EDF5'
+      const textColor = themeJSON?.textPrimary || themeJSON?.textColor || '#F0EDF5'
       const left = content.left || { label: 'Colonne A', items: [] }
       const right = content.right || { label: 'Colonne B', items: [] }
       return (
