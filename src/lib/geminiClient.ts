@@ -3,7 +3,7 @@
  * Les appels passent par le proxy VPS (clé serveur-side, jamais dans le bundle)
  */
 
-const PROXY_URL = import.meta.env.VITE_GEMINI_PROXY_URL || 'http://vps-b2edf054.vps.ovh.net:3099'
+const PROXY_URL = import.meta.env.VITE_GEMINI_PROXY_URL || 'https://vps-b2edf054.vps.ovh.net/gemini'
 
 export interface GeminiResponse {
   text: string
