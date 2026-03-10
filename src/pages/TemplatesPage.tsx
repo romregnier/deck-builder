@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Presentation, ChevronLeft, MoreHorizontal, Trash2, Layers } from 'lucide-react'
+import { Presentation, ChevronLeft, MoreHorizontal, Trash2, Layers, Pencil } from 'lucide-react'
 import type { DeckTemplate } from '../types/deck'
 
 // ── Source colors ─────────────────────────────────────────────────────────────
@@ -37,6 +37,7 @@ function TemplateCard({ template, onDelete }: { template: DeckTemplate; onDelete
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState(false)
 
   const sourceColor = SOURCE_COLORS[template.source] || '#6B7280'
   const bgColor = template.theme_config?.bgColor || '#0B090D'
@@ -50,6 +51,59 @@ function TemplateCard({ template, onDelete }: { template: DeckTemplate; onDelete
     await supabase.from('templates').delete().eq('id', template.id)
     onDelete()
     setDeleting(false)
+  }
+
+  async function handleEdit(e: React.MouseEvent) {
+    e.stopPropagation()
+    setEditingTemplate(true)
+    setMenuOpen(false)
+
+    // Créer un deck temporaire depuis ce template
+    const themeJson = JSON.stringify({
+      ...template.theme_config,
+      preset: template.theme_config?.preset || 'DARK_PREMIUM',
+    })
+
+    const { data: deck, error } = await supabase
+      .from('presentations')
+      .insert({
+        title: `[Édition] ${template.name}`,
+        description: template.description || '',
+        theme_json: themeJson,
+        status: 'draft',
+        is_template_edit: true,
+        source_template_id: template.id,
+      })
+      .select()
+      .single()
+
+    if (error || !deck) {
+      console.error('[handleEdit] failed to create temp deck:', error)
+      setEditingTemplate(false)
+      return
+    }
+
+    // Créer les slides depuis la structure du template
+    if (template.slide_structure && template.slide_structure.length > 0) {
+      const slidesData = template.slide_structure.map((s, i) => ({
+        presentation_id: deck.id,
+        type: s.type,
+        position: i,
+        content: s.content ? JSON.stringify(s.content) : JSON.stringify({}),
+      }))
+      await supabase.from('slides').insert(slidesData)
+    } else {
+      // Slide hero par défaut si pas de structure
+      await supabase.from('slides').insert({
+        presentation_id: deck.id,
+        type: 'hero',
+        position: 0,
+        content: JSON.stringify({ title: template.name, subtitle: '' }),
+      })
+    }
+
+    setEditingTemplate(false)
+    navigate(`/decks/${deck.id}/edit?edit_template=${template.id}`)
   }
 
   return (
@@ -236,10 +290,25 @@ function TemplateCard({ template, onDelete }: { template: DeckTemplate; onDelete
                         position: 'absolute', bottom: '100%', right: 0,
                         background: '#3E3742', border: '1px solid rgba(255,255,255,0.1)',
                         borderRadius: 8, overflow: 'hidden',
-                        zIndex: 10, minWidth: 120,
+                        zIndex: 10, minWidth: 140,
                         boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
                       }}
                     >
+                      <button
+                        onClick={handleEdit}
+                        disabled={editingTemplate}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '8px 12px', border: 'none',
+                          background: 'none', color: '#F5F0F7',
+                          fontSize: 12, cursor: 'pointer', width: '100%',
+                          fontFamily: 'Poppins, sans-serif',
+                          opacity: editingTemplate ? 0.5 : 1,
+                        }}
+                      >
+                        <Pencil size={12} />
+                        {editingTemplate ? 'Ouverture...' : 'Modifier'}
+                      </button>
                       <button
                         onClick={e => { e.stopPropagation(); handleDelete() }}
                         disabled={deleting}
@@ -249,6 +318,7 @@ function TemplateCard({ template, onDelete }: { template: DeckTemplate; onDelete
                           background: 'none', color: '#EF4444',
                           fontSize: 12, cursor: 'pointer', width: '100%',
                           fontFamily: 'Poppins, sans-serif',
+                          borderTop: '1px solid rgba(255,255,255,0.06)',
                         }}
                       >
                         <Trash2 size={12} />

@@ -9,7 +9,7 @@
  * - Toolbar top: titre + actions
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft, ChevronRight, ChevronDown, Plus, Maximize2, Eye, Globe, EyeOff,
@@ -1630,6 +1630,8 @@ const SLIDE_TYPE_PRESETS: Array<{ type: SlideType; icon: string; label: string; 
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const editTemplateId = searchParams.get('edit_template')
   const [deck, setDeck] = useState<DeckData | null>(null)
   const [slides, setSlides] = useState<SlideData[]>([])
   const [activeIdx, setActiveIdx] = useState(0)
@@ -1660,6 +1662,8 @@ export function DeckEditorPage() {
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   // DB-46 — Toggle Edit / Preview
   const [previewMode, setPreviewMode] = useState(false)
+  // Template edit mode
+  const [savingTemplate, setSavingTemplate] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // TK-0118 — Undo/Redo stacks
   const undoStackRef = useRef<Array<{ slideId: string; content: SlideContent }[]>>([])
@@ -1695,6 +1699,42 @@ export function DeckEditorPage() {
   useEffect(() => {
     if (id) fetchDeck(id)
   }, [id])
+
+  // ── Template edit mode — sauvegarder le template depuis le deck temporaire ──
+  async function handleUpdateTemplate() {
+    if (!editTemplateId || !deck) return
+    setSavingTemplate(true)
+
+    let themeConfig: Record<string, unknown> = {}
+    if (deck.theme_json) {
+      try { themeConfig = JSON.parse(deck.theme_json) as Record<string, unknown> } catch { /* */ }
+    }
+
+    const slideStructure = slides.map((s, i) => ({
+      type: s.type,
+      position: i,
+      content: s.content,
+    }))
+
+    // Mettre à jour le template dans Supabase
+    await supabase
+      .from('templates')
+      .update({
+        theme_config: themeConfig,
+        slide_structure: slideStructure,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', editTemplateId)
+
+    // Supprimer le deck temporaire
+    if (id) {
+      await supabase.from('slides').delete().eq('presentation_id', id)
+      await supabase.from('presentations').delete().eq('id', id)
+    }
+
+    setSavingTemplate(false)
+    navigate('/templates')
+  }
 
   // TK-0117 + TK-0118 — Raccourcis clavier : nav slides + suppr + escape + undo/redo
   useEffect(() => {
@@ -2299,7 +2339,30 @@ export function DeckEditorPage() {
             {activeIdx + 1} / {slides.length}
           </span>
 
-          {/* Template swap */}
+          {/* Template edit mode — bouton "Mettre à jour le template" */}
+          {editTemplateId && (
+            <button
+              onClick={handleUpdateTemplate}
+              disabled={savingTemplate}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 14px', borderRadius: 7,
+                border: '1px solid rgba(225,31,123,0.6)',
+                background: savingTemplate ? 'rgba(225,31,123,0.1)' : 'linear-gradient(135deg, #E11F7B, #c41a6a)',
+                color: '#fff',
+                fontSize: 12, fontWeight: 700, cursor: savingTemplate ? 'not-allowed' : 'pointer',
+                fontFamily: 'Poppins, sans-serif',
+                opacity: savingTemplate ? 0.7 : 1,
+                boxShadow: '0 2px 12px rgba(225,31,123,0.3)',
+              }}
+              title="Sauvegarder les modifications dans le template"
+            >
+              {savingTemplate ? '↻ Sauvegarde...' : '💾 Mettre à jour le template'}
+            </button>
+          )}
+
+          {/* Template swap — masqué en mode édition template */}
+          {!editTemplateId && (
           <button
             onClick={() => setShowTemplateModal(true)}
             style={{
@@ -2313,6 +2376,7 @@ export function DeckEditorPage() {
           >
             🎨 Template
           </button>
+          )}
 
           {/* DB-29/32 — Modèle+ déplacé dans le menu ··· */}
 
